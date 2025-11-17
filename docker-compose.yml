@@ -1,0 +1,40 @@
+# Docker Compose Setup for inSwing Development
+# Updated to use local MySQL instead of Docker container
+
+version: '3.8'
+
+services:
+  # Redis 7.0 Cache (Still using Docker for Redis)
+  redis:
+    image: redis:7.0-alpine
+    container_name: inswing-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass redis_password123
+    networks:
+      - inswing-network
+
+  # Redis Admin UI (Optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: inswing-redis-ui
+    restart: unless-stopped
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:redis_password123
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - inswing-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  inswing-network:
+    driver: bridge
