@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, case, and_, text
+from sqlalchemy import func, desc, case, and_, extract
 from typing import List, Optional
 from datetime import datetime, timedelta
 import structlog
@@ -38,8 +38,8 @@ async def get_batting_leaderboard(
     # Query for batting statistics
     batting_stats = db.query(
         User.id,
-        User.name,
-        User.profile_picture_url,
+        User.full_name,
+        User.avatar_url,
         func.sum(Ball.runs_off_bat).label('total_runs'),
         func.count(Ball.id).filter(Ball.runs_off_bat > 0).label('balls_faced'),
         func.count(case((Ball.runs_off_bat == 4, 1))).label('fours'),
@@ -53,11 +53,11 @@ async def get_batting_leaderboard(
         Match, Match.id == Innings.match_id
     ).filter(
         and_(
-            Match.status == 'completed',
+            Match.status == 'finished',
             time_filter
         )
     ).group_by(
-        User.id, User.name, User.profile_picture_url
+        User.id, User.full_name, User.avatar_url
     ).having(
         func.sum(Ball.runs_off_bat) > 0
     ).order_by(
@@ -71,8 +71,8 @@ async def get_batting_leaderboard(
         entries.append(LeaderboardEntry(
             rank=i,
             user_id=stat.id,
-            user_name=stat.name,
-            user_avatar=stat.profile_picture_url,
+            user_name=stat.full_name,
+            user_avatar=stat.avatar_url,
             primary_stat=int(stat.total_runs),
             secondary_stat=f"{strike_rate:.1f}",
             tertiary_stat=f"{stat.fours}/{stat.sixes}",
@@ -111,11 +111,11 @@ async def get_bowling_leaderboard(
     # Query for bowling statistics
     bowling_stats = db.query(
         User.id,
-        User.name,
-        User.profile_picture_url,
+        User.full_name,
+        User.avatar_url,
         func.count(Ball.id).filter(Ball.wicket_type.isnot(None)).label('wickets'),
         func.sum(Ball.runs_off_bat + Ball.extras_runs).label('runs_conceded'),
-        func.count(Ball.id).filter(Ball.is_legal_delivery == True).label('balls_bowled'),
+        func.count(Ball.id).filter(Ball.extras_type.is_(None)).label('balls_bowled'),
         func.count(case((Ball.extras_type == 'wide', 1))).label('wides'),
         func.count(case((Ball.extras_type == 'no_ball', 1))).label('no_balls')
     ).join(
@@ -126,11 +126,11 @@ async def get_bowling_leaderboard(
         Match, Match.id == Innings.match_id
     ).filter(
         and_(
-            Match.status == 'completed',
+            Match.status == 'finished',
             time_filter
         )
     ).group_by(
-        User.id, User.name, User.profile_picture_url
+        User.id, User.full_name, User.avatar_url
     ).having(
         func.count(Ball.id).filter(Ball.wicket_type.isnot(None)) > 0
     ).order_by(
@@ -147,8 +147,8 @@ async def get_bowling_leaderboard(
         entries.append(LeaderboardEntry(
             rank=i,
             user_id=stat.id,
-            user_name=stat.name,
-            user_avatar=stat.profile_picture_url,
+            user_name=stat.full_name,
+            user_avatar=stat.avatar_url,
             primary_stat=int(stat.wickets),
             secondary_stat=f"{economy:.1f}",
             tertiary_stat=f"{stat.runs_conceded}/{int(stat.wickets)}",
@@ -185,21 +185,24 @@ async def get_matches_hosted_leaderboard(
     
     time_filter = _build_time_filter(period)
     
+    # PostgreSQL-compatible: use EXTRACT(EPOCH FROM ...) instead of TIMESTAMPDIFF
     hosted_stats = db.query(
         User.id,
-        User.name,
-        User.profile_picture_url,
+        User.full_name,
+        User.avatar_url,
         func.count(Match.id).label('matches_hosted'),
-        func.avg(func.timestampdiff(text('SECOND'), Match.created_at, Match.completed_at)).label('avg_match_duration')
+        func.avg(
+            extract('epoch', Match.finished_at) - extract('epoch', Match.created_at)
+        ).label('avg_match_duration_seconds')
     ).join(
         Match, Match.host_user_id == User.id
     ).filter(
         and_(
-            Match.status == 'completed',
+            Match.status == 'finished',
             time_filter
         )
     ).group_by(
-        User.id, User.name, User.profile_picture_url
+        User.id, User.full_name, User.avatar_url
     ).having(
         func.count(Match.id) > 0
     ).order_by(
@@ -208,13 +211,13 @@ async def get_matches_hosted_leaderboard(
     
     entries = []
     for i, stat in enumerate(hosted_stats, 1):
-        avg_duration_minutes = (float(stat.avg_match_duration) / 60) if stat.avg_match_duration else 0
+        avg_duration_minutes = (float(stat.avg_match_duration_seconds) / 60) if stat.avg_match_duration_seconds else 0
         
         entries.append(LeaderboardEntry(
             rank=i,
             user_id=stat.id,
-            user_name=stat.name,
-            user_avatar=stat.profile_picture_url,
+            user_name=stat.full_name,
+            user_avatar=stat.avatar_url,
             primary_stat=int(stat.matches_hosted),
             secondary_stat=f"{avg_duration_minutes:.0f}m",
             tertiary_stat="Host",
@@ -244,55 +247,60 @@ async def get_player_rating_leaderboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get leaderboard based on player ratings."""
+    """Get leaderboard based on player performance (matches played + runs + wickets)."""
     
     time_filter = _build_time_filter(period)
     
     # Query for player participation and performance
+    # Note: User model has no 'rating' column — calculate a simple composite score
     player_stats = db.query(
         User.id,
-        User.name,
-        User.profile_picture_url,
-        User.rating,
-        func.count(PlayersInMatch.id).label('matches_played'),
-        func.sum(Ball.runs_off_bat).label('total_runs'),
+        User.full_name,
+        User.avatar_url,
+        func.count(func.distinct(PlayersInMatch.match_id)).label('matches_played'),
+        func.coalesce(func.sum(Ball.runs_off_bat), 0).label('total_runs'),
         func.count(Ball.id).filter(Ball.wicket_type.isnot(None)).label('wickets_taken')
     ).join(
         PlayersInMatch, PlayersInMatch.user_id == User.id
     ).join(
         Match, Match.id == PlayersInMatch.match_id
     ).outerjoin(
-        Ball, and_(Ball.batsman_id == User.id, Ball.innings_id == Innings.id, Innings.match_id == Match.id)
-    ).outerjoin(
         Innings, Innings.match_id == Match.id
+    ).outerjoin(
+        Ball, and_(Ball.batsman_id == User.id, Ball.innings_id == Innings.id)
     ).filter(
         and_(
-            Match.status == 'completed',
+            Match.status == 'finished',
             time_filter
         )
     ).group_by(
-        User.id, User.name, User.profile_picture_url, User.rating
+        User.id, User.full_name, User.avatar_url
     ).having(
-        func.count(PlayersInMatch.id) > 0
+        func.count(func.distinct(PlayersInMatch.match_id)) > 0
     ).order_by(
-        desc(User.rating)
+        desc('matches_played'),
+        desc('total_runs')
     ).limit(limit).all()
     
     entries = []
     for i, stat in enumerate(player_stats, 1):
         total_runs = int(stat.total_runs) if stat.total_runs else 0
         wickets = int(stat.wickets_taken) if stat.wickets_taken else 0
+        matches = int(stat.matches_played)
+        
+        # Simple performance score: runs + (wickets * 25) + (matches * 10)
+        perf_score = total_runs + (wickets * 25) + (matches * 10)
         
         entries.append(LeaderboardEntry(
             rank=i,
             user_id=stat.id,
-            user_name=stat.name,
-            user_avatar=stat.profile_picture_url,
-            primary_stat=float(stat.rating),
-            secondary_stat=f"{int(stat.matches_played)} matches",
+            user_name=stat.full_name,
+            user_avatar=stat.avatar_url,
+            primary_stat=perf_score,
+            secondary_stat=f"{matches} matches",
             tertiary_stat=f"{total_runs}r/{wickets}w",
             additional_stats={
-                "matches_played": int(stat.matches_played),
+                "matches_played": matches,
                 "total_runs": total_runs,
                 "wickets_taken": wickets
             }
@@ -313,12 +321,16 @@ async def get_player_rating_leaderboard(
 
 
 def _build_time_filter(period: TimePeriod):
-    """Build SQL time filter based on period."""
+    """Build SQL time filter based on period. PostgreSQL compatible."""
+    now = datetime.utcnow()
     if period == TimePeriod.WEEK:
-        return func.date(Match.completed_at) >= func.date(func.now() - timedelta(days=7))
+        cutoff = now - timedelta(days=7)
+        return Match.finished_at >= cutoff
     elif period == TimePeriod.MONTH:
-        return func.date(Match.completed_at) >= func.date(func.now() - timedelta(days=30))
+        cutoff = now - timedelta(days=30)
+        return Match.finished_at >= cutoff
     elif period == TimePeriod.YEAR:
-        return func.date(Match.completed_at) >= func.date(func.now() - timedelta(days=365))
+        cutoff = now - timedelta(days=365)
+        return Match.finished_at >= cutoff
     else:  # ALL_TIME
         return True  # No time filter

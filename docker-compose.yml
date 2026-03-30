@@ -1,10 +1,31 @@
 # Docker Compose Setup for inSwing Development
-# Updated to use local MySQL instead of Docker container
+# PostgreSQL + Redis for local development
 
 version: '3.8'
 
 services:
-  # Redis 7.0 Cache (Still using Docker for Redis)
+  # PostgreSQL 16 Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: inswing-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inswing
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-inswing_dev_password}
+      POSTGRES_DB: inswing
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - inswing-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inswing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 7.0 Cache
   redis:
     image: redis:7.0-alpine
     container_name: inswing-redis
@@ -13,25 +34,13 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass redis_password123
-    networks:
-      - inswing-network
-
-  # Redis Admin UI (Optional)
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: inswing-redis-ui
-    restart: unless-stopped
-    environment:
-      - REDIS_HOSTS=local:redis:6379:0:redis_password123
-    ports:
-      - "8081:8081"
-    depends_on:
-      - redis
+    command: redis-server --appendonly yes
     networks:
       - inswing-network
 
 volumes:
+  postgres_data:
+    driver: local
   redis_data:
     driver: local
 

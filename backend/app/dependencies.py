@@ -1,4 +1,4 @@
-from typing import Optional, Generator
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ logger = structlog.get_logger()
 
 # Security scheme for JWT tokens
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
@@ -52,7 +53,6 @@ def get_current_user(
             detail="User account is inactive"
         )
     
-    logger.info("Current user retrieved", user_id=user_id, role=user.role)
     return user
 
 
@@ -78,13 +78,13 @@ def require_role(required_role: UserRole):
 
 
 def require_host_role(current_user: User = Depends(get_current_user)) -> User:
-    """Require host or admin role."""
-    if current_user.role not in [UserRole.player, UserRole.admin]:
-        logger.warning("Host role required", user_id=current_user.id, user_role=current_user.role)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This action requires host privileges"
-        )
+    """
+    Require any authenticated active user (match host check is done per-endpoint).
+    
+    Note: This verifies the user is authenticated and active.
+    Individual endpoints must verify match.host_user_id == current_user.id
+    for host-specific actions.
+    """
     return current_user
 
 
@@ -101,7 +101,7 @@ def require_admin_role(current_user: User = Depends(get_current_user)) -> User:
 
 def get_optional_current_user(
     db: Session = Depends(get_db),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)
 ) -> Optional[User]:
     """Get current user if authenticated, None otherwise."""
     if not credentials:

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, case
 from typing import List, Optional
 import structlog
 
@@ -30,23 +30,23 @@ async def search_users(
     
     # Search by name or phone (partial match)
     search_filter = or_(
-        User.name.ilike(f"%{query}%"),
-        User.phone.ilike(f"%{query}%")
+        User.full_name.ilike(f"%{query}%"),
+        User.phone_number.ilike(f"%{query}%")
     )
     
     users = db.query(User).filter(
         search_filter,
-        User.is_active == True  # Only show active users
+        User.is_active == True  # noqa: E712
     ).order_by(
         # Prioritize exact matches first
         case(
-            (User.name.ilike(query), 1),
-            (User.phone.ilike(query), 1),
+            (User.full_name.ilike(query), 1),
+            (User.phone_number.ilike(query), 1),
             else_=2
         ),
         # Then sort by name similarity
-        func.length(User.name),
-        User.name
+        func.length(User.full_name),
+        User.full_name
     ).limit(limit).all()
     
     logger.info("User search performed", 
@@ -66,12 +66,11 @@ async def search_matches(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Search for matches by title, location, or team names."""
+    """Search for matches by venue or team names."""
     
-    # Build search filter
+    # Build search filter — Match has no 'title', search by team names and venue
     search_filter = or_(
-        Match.title.ilike(f"%{query}%"),
-        Match.location.ilike(f"%{query}%"),
+        Match.venue.ilike(f"%{query}%"),
         Match.team_a_name.ilike(f"%{query}%"),
         Match.team_b_name.ilike(f"%{query}%")
     )
@@ -82,8 +81,8 @@ async def search_matches(
         filters.append(Match.status == status_filter)
     
     matches = db.query(Match).filter(*filters).order_by(
-        # Prioritize exact title matches first
-        case((Match.title.ilike(query), 1), else_=2),
+        # Prioritize venue matches first
+        case((Match.venue.ilike(query), 1), else_=2),
         # Then sort by creation date (newest first)
         Match.created_at.desc()
     ).limit(limit).all()
@@ -119,21 +118,21 @@ async def combined_search(
     if include_users:
         # Search users
         user_filter = or_(
-            User.name.ilike(f"%{query}%"),
-            User.phone.ilike(f"%{query}%")
+            User.full_name.ilike(f"%{query}%"),
+            User.phone_number.ilike(f"%{query}%")
         )
         
         users = db.query(User).filter(
             user_filter,
-            User.is_active == True
+            User.is_active == True  # noqa: E712
         ).order_by(
             case(
-                (User.name.ilike(query), 1),
-                (User.phone.ilike(query), 1),
+                (User.full_name.ilike(query), 1),
+                (User.phone_number.ilike(query), 1),
                 else_=2
             ),
-            func.length(User.name),
-            User.name
+            func.length(User.full_name),
+            User.full_name
         ).limit(limit_per_type).all()
         
         results["users"] = users
@@ -141,14 +140,13 @@ async def combined_search(
     if include_matches:
         # Search matches
         match_filter = or_(
-            Match.title.ilike(f"%{query}%"),
-            Match.location.ilike(f"%{query}%"),
+            Match.venue.ilike(f"%{query}%"),
             Match.team_a_name.ilike(f"%{query}%"),
             Match.team_b_name.ilike(f"%{query}%")
         )
         
         matches = db.query(Match).filter(match_filter).order_by(
-            case((Match.title.ilike(query), 1), else_=2),
+            case((Match.venue.ilike(query), 1), else_=2),
             Match.created_at.desc()
         ).limit(limit_per_type).all()
         
@@ -179,35 +177,38 @@ async def get_search_suggestions(
     suggestions = []
     
     # Get user name suggestions
-    user_names = db.query(User.name).filter(
-        User.name.ilike(f"%{query}%"),
-        User.is_active == True
+    user_names = db.query(User.full_name).filter(
+        User.full_name.ilike(f"%{query}%"),
+        User.is_active == True  # noqa: E712
     ).distinct().order_by(
-        func.length(User.name),
-        User.name
+        func.length(User.full_name),
+        User.full_name
     ).limit(limit // 2).all()
     
     suggestions.extend([name[0] for name in user_names])
     
-    # Get match title suggestions
-    match_titles = db.query(Match.title).filter(
-        Match.title.ilike(f"%{query}%")
+    # Get venue suggestions (Match has no 'title' column)
+    venues = db.query(Match.venue).filter(
+        Match.venue.ilike(f"%{query}%"),
+        Match.venue.isnot(None)
     ).distinct().order_by(
-        func.length(Match.title),
-        Match.title
+        func.length(Match.venue),
+        Match.venue
     ).limit(limit // 2).all()
     
-    suggestions.extend([title[0] for title in match_titles])
+    suggestions.extend([venue[0] for venue in venues if venue[0]])
     
-    # Get location suggestions
-    locations = db.query(Match.location).filter(
-        Match.location.ilike(f"%{query}%")
-    ).distinct().order_by(
-        func.length(Match.location),
-        Match.location
-    ).limit(limit // 2).all()
+    # Get team name suggestions
+    team_a_names = db.query(Match.team_a_name).filter(
+        Match.team_a_name.ilike(f"%{query}%")
+    ).distinct().limit(limit // 4).all()
     
-    suggestions.extend([location[0] for location in locations if location[0]])
+    team_b_names = db.query(Match.team_b_name).filter(
+        Match.team_b_name.ilike(f"%{query}%")
+    ).distinct().limit(limit // 4).all()
+    
+    suggestions.extend([name[0] for name in team_a_names if name[0]])
+    suggestions.extend([name[0] for name in team_b_names if name[0]])
     
     # Remove duplicates and limit
     suggestions = list(set(suggestions))[:limit]
@@ -230,38 +231,35 @@ async def get_popular_searches(
 ):
     """Get popular search terms based on user activity."""
     
-    # This is a simplified implementation - in a real app, you'd track search history
-    # For now, we'll return common cricket-related terms and popular user names
-    
     popular_terms = []
     
     # Get most active user names
-    active_users = db.query(User.name).join(
+    active_users = db.query(User.full_name).join(
         PlayersInMatch, PlayersInMatch.user_id == User.id
     ).join(
         Match, Match.id == PlayersInMatch.match_id
     ).filter(
-        Match.status == 'completed',
-        User.is_active == True
+        Match.status == 'finished',
+        User.is_active == True  # noqa: E712
     ).group_by(
-        User.name
+        User.full_name
     ).order_by(
         func.count(PlayersInMatch.id).desc()
     ).limit(limit // 2).all()
     
     popular_terms.extend([user[0] for user in active_users])
     
-    # Get most common match locations
-    common_locations = db.query(Match.location).filter(
-        Match.location.isnot(None),
-        Match.status == 'completed'
+    # Get most common match venues
+    common_venues = db.query(Match.venue).filter(
+        Match.venue.isnot(None),
+        Match.status == 'finished'
     ).group_by(
-        Match.location
+        Match.venue
     ).order_by(
         func.count(Match.id).desc()
     ).limit(limit // 2).all()
     
-    popular_terms.extend([location[0] for location in common_locations if location[0]])
+    popular_terms.extend([venue[0] for venue in common_venues if venue[0]])
     
     # Remove duplicates and limit
     popular_terms = list(set(popular_terms))[:limit]

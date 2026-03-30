@@ -1,12 +1,17 @@
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 import structlog
 
 from app.settings import settings
 
 logger = structlog.get_logger()
+
+
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy ORM models."""
+    pass
+
 
 # Create database engine
 engine = create_engine(
@@ -26,9 +31,6 @@ SessionLocal = sessionmaker(
     class_=Session
 )
 
-# Create base class for models
-Base = declarative_base()
-
 
 def get_db():
     """Dependency to get database session."""
@@ -37,18 +39,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def init_db():
-    """Initialize database by creating all tables."""
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
-    except Exception as e:
-        logger.error(f"Failed to create database tables: {e}")
-        raise
-
-
-def get_db_session():
-    """Get a database session for use in context managers."""
-    return SessionLocal()
