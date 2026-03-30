@@ -1,0 +1,71 @@
+# ============================================
+# inSwing - Root .gitignore
+# ============================================
+
+# ----- VS Code (IMPORTANT: contains secrets) -----
+.vscode/mcp.json
+.vscode/settings.json
+.vscode/launch.json
+.vscode/*.log
+
+# ----- Environment & Secrets -----
+.env
+.env.local
+.env.production
+.env.staging
+*.pem
+*.key
+*.cert
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.cover
+venv/
+.venv/
+env/
+
+# ----- Node.js (MCP servers) -----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+
+# ----- Flutter/Dart -----
+# (Flutter has its own .gitignore inside flutter/)
+
+# ----- OS Files -----
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# ----- IDE -----
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ----- Docker -----
+docker-compose.override.yml
+
+# ----- Logs -----
+*.log
+logs/
+
+# ----- Database -----
+*.db
+*.sqlite3
