@@ -3,15 +3,20 @@ from app.schemas.user import (
     UserRole, UserBase, UserCreate, UserUpdate, UserInDB, UserResponse, UserProfileResponse
 )
 from app.schemas.profile import (
-    BattingStyle, BowlingStyle, DominantHand, PlayerRole,
+    BattingStyle, BowlingStyle, DominantHand, PlayerRole as ProfilePlayerRole,
     ProfileBase, ProfileCreate, ProfileUpdate, ProfileStats, ProfileResponse
 )
 from app.schemas.match import (
-    MatchType, MatchStatus, TossDecision, MatchRules, MatchResult,
-    MatchBase, MatchCreate, MatchUpdate, TossUpdate, MatchInDB, MatchResponse, MatchListResponse
+    MatchType, MatchStatus, TossDecision, ScorerPermission,
+    MatchRules, MatchResult,
+    MatchCreate, MatchUpdate, TossUpdate,
+    MatchInviteRequest, MatchInviteAccept,
+    AddPlayerRequest, TeamReadyRequest,
+    RulesProposalRequest, RulesApprovalResponse,
+    MatchInDB, MatchResponse, MatchListResponse,
 )
 from app.schemas.players_in_match import (
-    MatchTeam, PlayerInMatchBase, PlayerInMatchCreate, PlayerInMatchUpdate, PlayerInMatchResponse
+    MatchTeam, PlayerRole, PlayerInMatchBase, PlayerInMatchCreate, PlayerInMatchUpdate, PlayerInMatchResponse
 )
 from app.schemas.innings import (
     BattingTeam, InningsBase, InningsCreate, InningsUpdate, InningsResponse
@@ -39,13 +44,18 @@ __all__ = [
     # User schemas
     "UserRole", "UserBase", "UserCreate", "UserUpdate", "UserInDB", "UserResponse", "UserProfileResponse",
     # Profile schemas
-    "BattingStyle", "BowlingStyle", "DominantHand", "PlayerRole",
+    "BattingStyle", "BowlingStyle", "DominantHand", "ProfilePlayerRole",
     "ProfileBase", "ProfileCreate", "ProfileUpdate", "ProfileStats", "ProfileResponse",
     # Match schemas
-    "MatchType", "MatchStatus", "TossDecision", "MatchRules", "MatchResult",
-    "MatchBase", "MatchCreate", "MatchUpdate", "TossUpdate", "MatchInDB", "MatchResponse", "MatchListResponse",
+    "MatchType", "MatchStatus", "TossDecision", "ScorerPermission",
+    "MatchRules", "MatchResult",
+    "MatchCreate", "MatchUpdate", "TossUpdate",
+    "MatchInviteRequest", "MatchInviteAccept",
+    "AddPlayerRequest", "TeamReadyRequest",
+    "RulesProposalRequest", "RulesApprovalResponse",
+    "MatchInDB", "MatchResponse", "MatchListResponse",
     # Players in match schemas
-    "MatchTeam", "PlayerInMatchBase", "PlayerInMatchCreate", "PlayerInMatchUpdate", "PlayerInMatchResponse",
+    "MatchTeam", "PlayerRole", "PlayerInMatchBase", "PlayerInMatchCreate", "PlayerInMatchUpdate", "PlayerInMatchResponse",
     # Innings schemas
     "BattingTeam", "InningsBase", "InningsCreate", "InningsUpdate", "InningsResponse",
     # Ball schemas

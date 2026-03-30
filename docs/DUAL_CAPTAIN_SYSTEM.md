@@ -303,11 +303,15 @@ Since our target is gully cricket players, include these special rules:
 
 ---
 
-## Decision Needed
+## Decisions — ALL CONFIRMED ✅
 
-Before we implement, confirm:
-
-1. ✅ Do we proceed with this dual-captain model?
-2. Should "Quick Match" mode skip invitation (solo scoring for practice)?
-3. Should we support "Guest Players" (add by name only, no app account)?
-4. Who should be the designated scorer? Host captain? Either? Third person?
+1. ✅ **Dual-captain model** — YES, proceed with full implementation
+2. ✅ **Quick Match mode** — YES, skips invitation entirely (solo scoring, host manages everything)
+3. ✅ **Guest Players** — YES, support adding players by name only (no app account needed)
+4. ✅ **Scorer Permissions** — Configurable per match via rules:
+   - `host_only` — Only the host captain can score (default)
+   - `captains` — Either captain can score
+   - `designated` — A designated third-party scorer
+   - `all_players` — Any player in the match can score
+5. ✅ **Three match modes**: `quick` (solo), `dual_captain` (invite flow), `tournament` (Phase 3)
+6. ✅ **Tournament mode** = single organizer host, deferred to Phase 3

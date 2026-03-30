@@ -39,7 +39,16 @@ class User(Base):
     hosted_matches = relationship(
         "Match", back_populates="host", foreign_keys="Match.host_user_id"
     )
-    match_participations = relationship("PlayersInMatch", back_populates="user")
+    opponent_matches = relationship(
+        "Match",
+        back_populates="opponent_captain",
+        foreign_keys="Match.opponent_captain_id",
+    )
+    match_participations = relationship(
+        "PlayersInMatch",
+        back_populates="user",
+        foreign_keys="PlayersInMatch.user_id",
+    )
     notifications = relationship("Notification", back_populates="user")
 
     def __repr__(self):
