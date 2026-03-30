@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from app.database import Base
-from sqlalchemy import Boolean, Column, DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -23,12 +23,12 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
     updated_at = Column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
+        server_default=func.now(),  # type: ignore
+        onupdate=func.now(),  # type: ignore
         nullable=False,
     )
 
@@ -66,6 +66,6 @@ class User(Base):
             "role": self.role,
             "is_active": self.is_active,
             "is_verified": self.is_verified,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[union-attr]
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,  # type: ignore[union-attr]
         }

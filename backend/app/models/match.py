@@ -11,7 +11,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    Text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -55,14 +54,19 @@ class Match(Base):
     # === MATCH INFO ===
     match_type = Column(
         Enum(
-            "quick", "dual_captain", "friendly", "tournament",
+            "quick",
+            "dual_captain",
+            "friendly",
+            "tournament",
             name="match_type_v2",
         ),
         default="quick",
         nullable=False,
     )
     team_a_name = Column(String(100), nullable=False)
-    team_b_name = Column(String(100), nullable=True)  # Nullable for dual_captain (opponent sets it)
+    team_b_name = Column(
+        String(100), nullable=True
+    )  # Nullable for dual_captain (opponent sets it)
 
     # Venue information
     venue = Column(String(255), nullable=True)
@@ -75,17 +79,17 @@ class Match(Base):
     # === MATCH STATUS ===
     status = Column(
         Enum(
-            "created",           # Match shell created by host
-            "invited",           # Host sent invitation to opponent
-            "accepted",          # Opponent accepted invitation
-            "teams_ready",       # Both captains marked their teams ready
-            "rules_proposed",    # One captain proposed rules
-            "rules_approved",    # Both captains approved rules
-            "toss_done",         # Toss recorded
-            "live",              # Match in progress
-            "finished",          # Match completed
-            "cancelled",         # Match cancelled
-            "declined",          # Invitation declined by opponent
+            "created",  # Match shell created by host
+            "invited",  # Host sent invitation to opponent
+            "accepted",  # Opponent accepted invitation
+            "teams_ready",  # Both captains marked their teams ready
+            "rules_proposed",  # One captain proposed rules
+            "rules_approved",  # Both captains approved rules
+            "toss_done",  # Toss recorded
+            "live",  # Match in progress
+            "finished",  # Match completed
+            "cancelled",  # Match cancelled
+            "declined",  # Invitation declined by opponent
             name="match_status_v2",
         ),
         default="created",
@@ -121,7 +125,7 @@ class Match(Base):
     )
 
     # === RULES NEGOTIATION ===
-    proposed_rules = Column(JSON, nullable=True)          # Rules waiting for approval
+    proposed_rules = Column(JSON, nullable=True)  # Rules waiting for approval
     rules_proposed_by = Column(String(36), nullable=True)  # User ID of proposer
     host_rules_approved = Column(Boolean, default=False, nullable=False)
     opponent_rules_approved = Column(Boolean, default=False, nullable=False)
@@ -140,12 +144,12 @@ class Match(Base):
 
     # === TIMESTAMPS ===
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
     updated_at = Column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
+        server_default=func.now(),  # type: ignore
+        onupdate=func.now(),  # type: ignore
         nullable=False,
     )
     started_at = Column(DateTime(timezone=True), nullable=True)
@@ -191,13 +195,13 @@ class Match(Base):
             "latitude": self.latitude,
             "longitude": self.longitude,
             "scheduled_at": (
-                self.scheduled_at.isoformat() if self.scheduled_at else None
+                self.scheduled_at.isoformat() if self.scheduled_at else None  # type: ignore[union-attr]
             ),
             "status": self.status,
             "invitation_message": self.invitation_message,
-            "invited_at": self.invited_at.isoformat() if self.invited_at else None,
-            "accepted_at": self.accepted_at.isoformat() if self.accepted_at else None,
-            "declined_at": self.declined_at.isoformat() if self.declined_at else None,
+            "invited_at": self.invited_at.isoformat() if self.invited_at else None,  # type: ignore[union-attr]
+            "accepted_at": self.accepted_at.isoformat() if self.accepted_at else None,  # type: ignore[union-attr]
+            "declined_at": self.declined_at.isoformat() if self.declined_at else None,  # type: ignore[union-attr]
             "rules": self.rules,
             "proposed_rules": self.proposed_rules,
             "rules_proposed_by": self.rules_proposed_by,
@@ -209,10 +213,10 @@ class Match(Base):
             "result": self.result,
             "toss_winner": self.toss_winner,
             "toss_decision": self.toss_decision,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "started_at": self.started_at.isoformat() if self.started_at else None,
-            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[union-attr]
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,  # type: ignore[union-attr]
+            "started_at": self.started_at.isoformat() if self.started_at else None,  # type: ignore[union-attr]
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,  # type: ignore[union-attr]
         }
 
     @property
@@ -226,17 +230,17 @@ class Match(Base):
     @property
     def is_dual_captain(self) -> bool:
         """Check if this is a dual-captain match."""
-        return self.match_type == "dual_captain"
+        return self.match_type == "dual_captain"  # type: ignore[return-value]
 
     @property
     def both_teams_ready(self) -> bool:
         """Check if both teams are marked as ready."""
-        return self.host_team_ready and self.opponent_team_ready
+        return bool(self.host_team_ready and self.opponent_team_ready)
 
     @property
     def rules_agreed(self) -> bool:
         """Check if both captains have approved the rules."""
-        return self.host_rules_approved and self.opponent_rules_approved
+        return bool(self.host_rules_approved and self.opponent_rules_approved)
 
     def is_captain(self, user_id: str) -> bool:
         """Check if a user is either captain in this match."""

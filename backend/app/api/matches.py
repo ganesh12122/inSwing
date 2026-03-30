@@ -1,25 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from typing import Optional
 from datetime import datetime
-import structlog
+from typing import Optional
 
+import structlog
 from app.database import get_db
-from app.dependencies import get_current_user, require_host_role, get_optional_current_user
-from app.models.user import User
+from app.dependencies import (
+    get_current_user,
+    get_optional_current_user,
+    require_host_role,
+)
 from app.models.match import Match
-from app.models.players_in_match import PlayersInMatch
 from app.models.notification import Notification
+from app.models.players_in_match import PlayersInMatch
+from app.models.user import User
 from app.schemas import (
     MatchCreate,
-    MatchResponse,
-    MatchUpdate,
-    TossUpdate,
     MatchListResponse,
+    MatchResponse,
     MatchStatus,
     MatchType,
+    TossUpdate,
 )
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -28,6 +31,7 @@ router = APIRouter()
 # ============================================================================
 # MATCH CREATION
 # ============================================================================
+
 
 @router.post("/", response_model=MatchResponse)
 async def create_match(
@@ -84,6 +88,7 @@ async def create_match(
 # ============================================================================
 # MATCH LISTING & RETRIEVAL
 # ============================================================================
+
 
 @router.get("/", response_model=MatchListResponse)
 async def list_matches(
@@ -199,6 +204,7 @@ async def get_match(
 # INVITATION FLOW (Dual Captain)
 # ============================================================================
 
+
 @router.post("/{match_id}/invite", response_model=MatchResponse)
 async def invite_opponent(
     match_id: str,
@@ -215,13 +221,19 @@ async def invite_opponent(
         raise HTTPException(status_code=404, detail="Match not found")
 
     if match.host_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the host can send invitations")
+        raise HTTPException(
+            status_code=403, detail="Only the host can send invitations"
+        )
 
     if match.match_type != "dual_captain":
-        raise HTTPException(status_code=400, detail="Invitations are only for dual_captain matches")
+        raise HTTPException(
+            status_code=400, detail="Invitations are only for dual_captain matches"
+        )
 
     if match.status != "created":
-        raise HTTPException(status_code=400, detail=f"Cannot invite in '{match.status}' status")
+        raise HTTPException(
+            status_code=400, detail=f"Cannot invite in '{match.status}' status"
+        )
 
     opponent_id = invite_data.get("opponent_user_id")
     if not opponent_id:
@@ -247,7 +259,11 @@ async def invite_opponent(
         title="Match Invitation",
         message=f"{current_user.full_name} invited you to a match — {match.team_a_name} vs ?",
         type="match_invitation",
-        data={"match_id": match.id, "host_name": current_user.full_name, "team_a_name": match.team_a_name},
+        data={
+            "match_id": match.id,
+            "host_name": current_user.full_name,
+            "team_a_name": match.team_a_name,
+        },
         priority="high",
     )
     db.add(notification)
@@ -284,7 +300,9 @@ async def accept_invitation(
         raise HTTPException(status_code=403, detail="You are not the invited opponent")
 
     if match.status != "invited":
-        raise HTTPException(status_code=400, detail=f"Cannot accept in '{match.status}' status")
+        raise HTTPException(
+            status_code=400, detail=f"Cannot accept in '{match.status}' status"
+        )
 
     team_b_name = accept_data.get("team_b_name")
     if not team_b_name or len(team_b_name.strip()) == 0:
@@ -312,7 +330,11 @@ async def accept_invitation(
         title="Invitation Accepted!",
         message=f"{current_user.full_name} accepted your match invitation with team '{team_b_name}'",
         type="match_update",
-        data={"match_id": match.id, "opponent_name": current_user.full_name, "team_b_name": team_b_name},
+        data={
+            "match_id": match.id,
+            "opponent_name": current_user.full_name,
+            "team_b_name": team_b_name,
+        },
         priority="high",
     )
     db.add(notification)
@@ -345,7 +367,9 @@ async def decline_invitation(
         raise HTTPException(status_code=403, detail="You are not the invited opponent")
 
     if match.status != "invited":
-        raise HTTPException(status_code=400, detail=f"Cannot decline in '{match.status}' status")
+        raise HTTPException(
+            status_code=400, detail=f"Cannot decline in '{match.status}' status"
+        )
 
     match.status = "declined"
     match.declined_at = datetime.utcnow()
@@ -363,7 +387,9 @@ async def decline_invitation(
 
     db.commit()
 
-    logger.info("Match invitation declined", match_id=match.id, opponent_id=current_user.id)
+    logger.info(
+        "Match invitation declined", match_id=match.id, opponent_id=current_user.id
+    )
 
     return {"message": "Invitation declined"}
 
@@ -371,6 +397,7 @@ async def decline_invitation(
 # ============================================================================
 # TEAM MANAGEMENT
 # ============================================================================
+
 
 @router.post("/{match_id}/team/players", response_model=dict)
 async def add_player_to_team(
@@ -391,10 +418,18 @@ async def add_player_to_team(
     # Determine which team this captain manages
     team = _get_captain_team(match, current_user.id)
     if team is None:
-        raise HTTPException(status_code=403, detail="You are not a captain in this match")
+        raise HTTPException(
+            status_code=403, detail="You are not a captain in this match"
+        )
 
     # Check match is in a state that allows adding players
-    allowed_statuses = ["created", "accepted", "teams_ready", "rules_proposed", "rules_approved"]
+    allowed_statuses = [
+        "created",
+        "accepted",
+        "teams_ready",
+        "rules_proposed",
+        "rules_approved",
+    ]
     if match.status not in allowed_statuses:
         raise HTTPException(
             status_code=400,
@@ -406,7 +441,9 @@ async def add_player_to_team(
     role = player_data.get("role", "batsman")
 
     if not user_id and not guest_name:
-        raise HTTPException(status_code=400, detail="Provide either user_id or guest_name")
+        raise HTTPException(
+            status_code=400, detail="Provide either user_id or guest_name"
+        )
 
     # Check max players
     current_team_count = (
@@ -432,11 +469,15 @@ async def add_player_to_team(
         # Check if already in match
         existing = (
             db.query(PlayersInMatch)
-            .filter(PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == user_id)
+            .filter(
+                PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == user_id
+            )
             .first()
         )
         if existing:
-            raise HTTPException(status_code=400, detail="Player is already in this match")
+            raise HTTPException(
+                status_code=400, detail="Player is already in this match"
+            )
 
     # Add player
     player_in_match = PlayersInMatch(
@@ -488,7 +529,9 @@ async def remove_player_from_team(
 
     team = _get_captain_team(match, current_user.id)
     if team is None:
-        raise HTTPException(status_code=403, detail="You are not a captain in this match")
+        raise HTTPException(
+            status_code=403, detail="You are not a captain in this match"
+        )
 
     player_in_match = (
         db.query(PlayersInMatch)
@@ -499,11 +542,15 @@ async def remove_player_from_team(
         raise HTTPException(status_code=404, detail="Player not found in this match")
 
     if player_in_match.team != team:
-        raise HTTPException(status_code=403, detail="You can only remove players from your own team")
+        raise HTTPException(
+            status_code=403, detail="You can only remove players from your own team"
+        )
 
     # Cannot remove yourself (captain)
     if player_in_match.role == "captain":
-        raise HTTPException(status_code=400, detail="Cannot remove the captain from the team")
+        raise HTTPException(
+            status_code=400, detail="Cannot remove the captain from the team"
+        )
 
     db.delete(player_in_match)
 
@@ -542,7 +589,9 @@ async def mark_team_ready(
 
     team = _get_captain_team(match, current_user.id)
     if team is None:
-        raise HTTPException(status_code=403, detail="You are not a captain in this match")
+        raise HTTPException(
+            status_code=403, detail="You are not a captain in this match"
+        )
 
     is_ready = (ready_data or {}).get("ready", True)
 
@@ -609,7 +658,11 @@ async def get_teams(
             "role": p.role,
             "is_guest": p.is_guest,
             "guest_name": p.guest_name,
-            "display_name": p.guest_name if p.is_guest else (p.user.full_name if p.user else "Unknown"),
+            "display_name": (
+                p.guest_name
+                if p.is_guest
+                else (p.user.full_name if p.user else "Unknown")
+            ),
             "added_by": p.added_by,
             "joined_at": p.joined_at.isoformat() if p.joined_at else None,
         }
@@ -638,6 +691,7 @@ async def get_teams(
 # ============================================================================
 # RULES NEGOTIATION
 # ============================================================================
+
 
 @router.post("/{match_id}/rules/propose", response_model=MatchResponse)
 async def propose_rules(
@@ -727,7 +781,9 @@ async def approve_rules(
         raise HTTPException(status_code=400, detail="No rules proposal to approve")
 
     if match.rules_proposed_by == current_user.id:
-        raise HTTPException(status_code=400, detail="You already approved (you proposed these rules)")
+        raise HTTPException(
+            status_code=400, detail="You already approved (you proposed these rules)"
+        )
 
     # Set approval
     if current_user.id == match.host_user_id:
@@ -806,6 +862,7 @@ async def get_rules(
 # TOSS & STATUS
 # ============================================================================
 
+
 @router.put("/{match_id}/toss", response_model=MatchResponse)
 async def record_toss(
     match_id: str,
@@ -822,7 +879,9 @@ async def record_toss(
     # For dual captain: either captain can record toss after rules are approved
     if match.is_dual_captain:
         if not match.is_captain(current_user.id):
-            raise HTTPException(status_code=403, detail="Only captains can record the toss")
+            raise HTTPException(
+                status_code=403, detail="Only captains can record the toss"
+            )
         if match.status not in ("rules_approved", "teams_ready"):
             raise HTTPException(
                 status_code=400,
@@ -831,7 +890,9 @@ async def record_toss(
     else:
         # Quick match: only host
         if match.host_user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Only the match host can record the toss")
+            raise HTTPException(
+                status_code=403, detail="Only the match host can record the toss"
+            )
 
     match.toss_winner = toss_data.toss_winner
     match.toss_decision = toss_data.toss_decision.value
@@ -866,10 +927,14 @@ async def update_match_status(
     # Permission check — captain or host
     if match.is_dual_captain:
         if not match.is_captain(current_user.id):
-            raise HTTPException(status_code=403, detail="Only captains can update match status")
+            raise HTTPException(
+                status_code=403, detail="Only captains can update match status"
+            )
     else:
         if match.host_user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Only the match host can update status")
+            raise HTTPException(
+                status_code=403, detail="Only the match host can update status"
+            )
 
     # Update timestamps based on status
     if new_status == MatchStatus.live and match.status != "live":
@@ -896,6 +961,7 @@ async def update_match_status(
 # CANCEL MATCH
 # ============================================================================
 
+
 @router.delete("/{match_id}", response_model=dict)
 async def cancel_match(
     match_id: str,
@@ -911,10 +977,14 @@ async def cancel_match(
     # Permission check
     if match.is_dual_captain:
         if not match.is_captain(current_user.id):
-            raise HTTPException(status_code=403, detail="Only captains can cancel the match")
+            raise HTTPException(
+                status_code=403, detail="Only captains can cancel the match"
+            )
     else:
         if match.host_user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Only the match host can cancel the match")
+            raise HTTPException(
+                status_code=403, detail="Only the match host can cancel the match"
+            )
 
     if match.status == "finished":
         raise HTTPException(status_code=400, detail="Cannot cancel a finished match")
@@ -953,6 +1023,7 @@ async def cancel_match(
 # LEGACY ENDPOINTS (backward compatible — delegates to new team management)
 # ============================================================================
 
+
 @router.post("/{match_id}/players", response_model=dict)
 async def add_player_to_match(
     match_id: str,
@@ -970,7 +1041,9 @@ async def add_player_to_match(
         raise HTTPException(status_code=404, detail="Match not found")
 
     if match.host_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the match host can add players")
+        raise HTTPException(
+            status_code=403, detail="Only the match host can add players"
+        )
 
     user_id = player_data.get("user_id")
     team = player_data.get("team")
@@ -1028,11 +1101,15 @@ async def remove_player_from_match(
         raise HTTPException(status_code=404, detail="Match not found")
 
     if match.host_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the match host can remove players")
+        raise HTTPException(
+            status_code=403, detail="Only the match host can remove players"
+        )
 
     player_in_match = (
         db.query(PlayersInMatch)
-        .filter(PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == player_id)
+        .filter(
+            PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == player_id
+        )
         .first()
     )
     if not player_in_match:
@@ -1053,6 +1130,7 @@ async def remove_player_from_match(
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 def _get_captain_team(match: Match, user_id: str) -> Optional[str]:
     """Determine which team a captain manages.

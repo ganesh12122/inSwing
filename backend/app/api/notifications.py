@@ -6,12 +6,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.notification import Notification
 from app.models.user import User
-from app.schemas import (
-    NotificationCreate,
-    NotificationResponse,
-    NotificationStatus,
-    NotificationUpdate,
-)
+from app.schemas import NotificationCreate, NotificationResponse, NotificationStatus
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -35,7 +30,7 @@ async def get_notifications(
     query = db.query(Notification).filter(Notification.user_id == current_user.id)
 
     if status_filter:
-        query = query.filter(Notification.status == status_filter)
+        query = query.filter(Notification.status == status_filter)  # type: ignore[arg-type]
 
     notifications = query.order_by(Notification.created_at.desc()).limit(limit).all()
 
@@ -60,7 +55,7 @@ async def get_unread_count(
         db.query(Notification)
         .filter(
             Notification.user_id == current_user.id,
-            Notification.status == NotificationStatus.UNREAD,
+            Notification.status == NotificationStatus.UNREAD,  # type: ignore[arg-type]
         )
         .count()
     )
@@ -81,7 +76,7 @@ async def create_notification(
     """Create a new notification (for testing/admin purposes)."""
 
     # Only admins can create notifications for other users
-    if notification_data.user_id != current_user.id and current_user.role != "admin":
+    if notification_data.user_id != current_user.id and current_user.role != "admin":  # type: ignore[truthy-bool]
         logger.warning(
             "Unauthorized notification creation attempt",
             user_id=current_user.id,
@@ -169,12 +164,12 @@ async def mark_all_notifications_read(
         db.query(Notification)
         .filter(
             Notification.user_id == current_user.id,
-            Notification.status == NotificationStatus.UNREAD,
+            Notification.status == NotificationStatus.UNREAD,  # type: ignore[arg-type]
         )
         .update(
             {
-                Notification.status: NotificationStatus.READ,
-                Notification.read_at: datetime.utcnow(),
+                "status": NotificationStatus.READ,  # type: ignore[dict-item]
+                "read_at": datetime.utcnow(),
             }
         )
     )
@@ -244,7 +239,7 @@ async def cleanup_old_notifications(
             Notification.user_id == current_user.id,
             Notification.created_at < cutoff_date,
             Notification.status
-            == NotificationStatus.READ,  # Only delete read notifications
+            == NotificationStatus.READ,  # Only delete read notifications  # type: ignore[arg-type]
         )
         .delete()
     )
@@ -282,7 +277,7 @@ async def send_match_invitation_notification(
             status_code=status.HTTP_404_NOT_FOUND, detail="Match not found"
         )
 
-    if match.host_user_id != current_user.id:
+    if match.host_user_id != current_user.id:  # type: ignore[truthy-bool]
         logger.warning(
             "Unauthorized match invitation",
             match_id=match_id,
@@ -371,7 +366,7 @@ async def send_match_update_notification(
             status_code=status.HTTP_404_NOT_FOUND, detail="Match not found"
         )
 
-    if match.host_user_id != current_user.id:
+    if match.host_user_id != current_user.id:  # type: ignore[truthy-bool]
         logger.warning(
             "Unauthorized match update notification",
             match_id=match_id,

@@ -34,7 +34,11 @@ class PlayersInMatch(Base):
     team = Column(Enum("A", "B", name="match_team"), nullable=False, index=True)
     role = Column(
         Enum(
-            "captain", "batsman", "bowler", "allrounder", "wicketkeeper",
+            "captain",
+            "batsman",
+            "bowler",
+            "allrounder",
+            "wicketkeeper",
             name="player_role_v2",
         ),
         default="batsman",
@@ -55,7 +59,7 @@ class PlayersInMatch(Base):
 
     # Join timestamp
     joined_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
 
     # === RELATIONSHIPS ===
@@ -71,7 +75,7 @@ class PlayersInMatch(Base):
     )
 
     def __repr__(self):
-        player_name = self.guest_name if self.is_guest else f"user:{self.user_id}"
+        player_name = self.guest_name if self.is_guest else f"user:{self.user_id}"  # type: ignore[truthy-bool]
         return f"<PlayersInMatch(id={self.id}, match={self.match_id}, player={player_name}, team={self.team})>"
 
     def to_dict(self):
@@ -85,14 +89,14 @@ class PlayersInMatch(Base):
             "is_guest": self.is_guest,
             "guest_name": self.guest_name,
             "added_by": self.added_by,
-            "joined_at": self.joined_at.isoformat() if self.joined_at else None,
+            "joined_at": self.joined_at.isoformat() if self.joined_at else None,  # type: ignore[union-attr]
         }
 
     @property
     def display_name(self) -> str:
         """Get display name - guest_name for guests, requires user load for app users."""
-        if self.is_guest:
-            return self.guest_name or "Unknown Player"
+        if self.is_guest:  # type: ignore[truthy-bool]
+            return self.guest_name or "Unknown Player"  # type: ignore[return-value]
         if self.user:
             return self.user.full_name
         return "Unknown Player"

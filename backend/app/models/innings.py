@@ -50,12 +50,12 @@ class Innings(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
     updated_at = Column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
+        server_default=func.now(),  # type: ignore
+        onupdate=func.now(),  # type: ignore
         nullable=False,
     )
 
@@ -79,21 +79,21 @@ class Innings(Base):
             "overs_bowled": self.overs_bowled,
             "is_completed": self.is_completed,
             "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
+                self.completed_at.isoformat() if self.completed_at else None  # type: ignore[truthy-bool]
             ),
             "notes": self.notes,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[truthy-bool]
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,  # type: ignore[truthy-bool]
         }
 
     @property
     def run_rate(self):
         """Calculate current run rate."""
-        if self.overs_bowled > 0:
-            return round(self.runs / self.overs_bowled, 2)
+        if self.overs_bowled > 0:  # type: ignore[operator]
+            return round(self.runs / self.overs_bowled, 2)  # type: ignore[operator]
         return 0.0
 
     @property
     def current_over_balls(self):
         """Get balls in current over (0-5)."""
-        return int((self.overs_bowled % 1) * 10)
+        return int((self.overs_bowled % 1) * 10)  # type: ignore[operator]

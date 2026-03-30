@@ -1,15 +1,14 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase
-from sqlalchemy.pool import StaticPool
 import structlog
-
 from app.settings import settings
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = structlog.get_logger()
 
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models."""
+
     pass
 
 
@@ -20,15 +19,12 @@ engine = create_engine(
     pool_recycle=300,
     pool_size=10,
     max_overflow=20,
-    echo=settings.DEBUG  # SQL query logging in debug mode
+    echo=settings.DEBUG,  # SQL query logging in debug mode
 )
 
 # Create session factory
 SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    class_=Session
+    autocommit=False, autoflush=False, bind=engine, class_=Session
 )
 
 

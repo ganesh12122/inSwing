@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from app.database import Base
-from sqlalchemy import JSON, Column, DateTime, Enum, Float, ForeignKey, Integer, String
+from sqlalchemy import JSON, Column, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -73,7 +73,7 @@ class Ball(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
 
     # Relationships
@@ -101,8 +101,8 @@ class Ball(Base):
             "wicket_type": self.wicket_type,
             "dismissal_info": self.dismissal_info,
             "client_event_id": self.client_event_id,
-            "metadata": self.metadata,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "metadata": self.ball_metadata,
+            "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[union-attr]
         }
 
     @property

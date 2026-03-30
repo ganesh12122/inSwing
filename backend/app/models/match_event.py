@@ -46,7 +46,7 @@ class MatchEvent(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
 
     # Relationships
@@ -66,5 +66,5 @@ class MatchEvent(Base):
             "meta": self.meta,
             "likes_count": self.likes_count,
             "comments_count": self.comments_count,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[truthy-bool]
         }

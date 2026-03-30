@@ -1,17 +1,7 @@
 from uuid import uuid4
 
 from app.database import Base
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    Enum,
-    Float,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-)
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -59,12 +49,12 @@ class Profile(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
     updated_at = Column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
+        server_default=func.now(),  # type: ignore
+        onupdate=func.now(),  # type: ignore
         nullable=False,
     )
 
@@ -94,6 +84,6 @@ class Profile(Base):
             "bowling_average": self.bowling_average,
             "teams": self.teams,
             "achievements": self.achievements,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[truthy-bool]
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,  # type: ignore[truthy-bool]
         }

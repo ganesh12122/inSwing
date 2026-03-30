@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
 import structlog
 from app.auth import (
@@ -13,7 +12,7 @@ from app.auth import (
     verify_token,
 )
 from app.database import get_db
-from app.dependencies import get_current_user, get_current_user_id
+from app.dependencies import get_current_user_id
 from app.models.otp_session import OTPSession
 from app.models.user import User
 from app.schemas import (
@@ -23,9 +22,7 @@ from app.schemas import (
     OTPVerify,
     RefreshTokenRequest,
     TokenResponse,
-    UserCreate,
     UserLoginResponse,
-    UserResponse,
 )
 from app.settings import settings
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -125,32 +122,33 @@ async def verify_otp(otp_verify: OTPVerify, db: Session = Depends(get_db)):
     """
     Verify OTP code and return JWT tokens.
     """
-    phone = format_phone_number(otp_verify.phone_number)
-
     if not validate_otp_code(otp_verify.otp_code):
-        logger.warning("Invalid OTP format", phone=phone)
+        logger.warning("Invalid OTP format", session_id=otp_verify.session_id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP format"
         )
 
-    # Find active OTP session
+    # Find active OTP session by session_id
     otp_session = (
         db.query(OTPSession)
         .filter(
-            OTPSession.phone_number == phone, OTPSession.expires_at > datetime.utcnow()
+            OTPSession.id == otp_verify.session_id,
+            OTPSession.expires_at > datetime.utcnow(),
         )
         .first()
     )
 
     if not otp_session:
-        logger.warning("No active OTP session found", phone=phone)
+        logger.warning("No active OTP session found", session_id=otp_verify.session_id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No active OTP session found or OTP expired",
         )
 
+    phone = otp_session.phone_number  # type: ignore
+
     # Check if max attempts reached
-    if otp_session.attempts >= settings.OTP_MAX_ATTEMPTS:
+    if otp_session.attempts >= settings.OTP_MAX_ATTEMPTS:  # type: ignore[operator]
         logger.warning(
             "Max OTP attempts reached", phone=phone, attempts=otp_session.attempts
         )

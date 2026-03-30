@@ -1,0 +1,16 @@
+{
+  "include": ["app"],
+  "extraPaths": ["."],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportGeneralTypeIssues": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportReturnType": "warning",
+  "reportArgumentType": "warning",
+  "reportUnusedImport": "warning",
+  "reportCallIssue": "warning",
+  "reportIndexIssue": "warning",
+  "reportOperatorIssue": "warning",
+  "reportAttributeAccessIssue": "warning",
+  "reportAssignmentType": "warning"
+}

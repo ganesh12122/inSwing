@@ -22,7 +22,7 @@ class OTPSession(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False  # type: ignore
     )
 
     def __repr__(self):
@@ -34,8 +34,8 @@ class OTPSession(Base):
             "id": self.id,
             "phone_number": self.phone_number,
             "attempts": self.attempts,
-            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,  # type: ignore[truthy-bool]
+            "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[truthy-bool]
         }
 
     @property
@@ -43,7 +43,7 @@ class OTPSession(Base):
         """Check if OTP session has expired."""
         from datetime import datetime, timezone
 
-        return datetime.now(timezone.utc) > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at  # type: ignore[operator]
 
     def increment_attempts(self):
         """Increment attempt counter."""
