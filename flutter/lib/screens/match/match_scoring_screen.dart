@@ -53,7 +53,8 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
         loading: () => const LoadingWidget(message: 'Loading match...'),
         error: (error, stack) => widgets.ErrorDisplay(
           message: error.toString(),
-          onRetry: () => ref.read(matchScoringProvider.notifier).loadMatch(widget.matchId),
+          onRetry: () =>
+              ref.read(matchScoringProvider.notifier).loadMatch(widget.matchId),
         ),
         data: (match) => _buildScoringInterface(match, theme),
       ),
@@ -92,7 +93,7 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
                     ),
                   ),
                   _buildTeamScore(
-                    teamName: match.teamBName,
+                    teamName: match.teamBName ?? 'TBD',
                     score: '${match.teamBRuns ?? 0}',
                     wickets: match.teamBWickets ?? 0,
                     overs: _formatOvers(match.teamBOvers ?? 0.0),
@@ -101,12 +102,12 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Current over details
               Text(
-                'Current Innings: ${match.battingTeam == "A" ? match.teamAName : match.teamBName}',
+                'Current Innings: ${match.battingTeam == "A" ? match.teamAName : (match.teamBName ?? "TBD")}',
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
@@ -121,12 +122,13 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
             ],
           ),
         ),
-        
+
         const Divider(),
-        
+
         // Current over balls
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: kDefaultPadding, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+              horizontal: kDefaultPadding, vertical: 8),
           child: Row(
             children: [
               Text('This Over:', style: theme.textTheme.titleSmall),
@@ -138,7 +140,7 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
           ),
         ),
         const Divider(),
-        
+
         // Scoring buttons
         Expanded(
           child: Container(
@@ -152,18 +154,23 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
                     children: [
-                      _buildScoringButton('0', Colors.grey, () => _recordRun(0)),
-                      _buildScoringButton('1', Colors.blue, () => _recordRun(1)),
-                      _buildScoringButton('2', Colors.green, () => _recordRun(2)),
-                      _buildScoringButton('3', Colors.orange, () => _recordRun(3)),
-                      _buildScoringButton('4', Colors.purple, () => _recordRun(4)),
+                      _buildScoringButton(
+                          '0', Colors.grey, () => _recordRun(0)),
+                      _buildScoringButton(
+                          '1', Colors.blue, () => _recordRun(1)),
+                      _buildScoringButton(
+                          '2', Colors.green, () => _recordRun(2)),
+                      _buildScoringButton(
+                          '3', Colors.orange, () => _recordRun(3)),
+                      _buildScoringButton(
+                          '4', Colors.purple, () => _recordRun(4)),
                       _buildScoringButton('6', Colors.red, () => _recordRun(6)),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Special buttons row
                 Row(
                   children: [
@@ -192,9 +199,9 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Action buttons
                 Row(
                   children: [
@@ -242,7 +249,8 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isBatting ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
+        color:
+            isBatting ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isBatting ? theme.colorScheme.primary : Colors.transparent,
@@ -318,17 +326,17 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
   // Scoring methods
   void _recordRun(int runs) {
     ref.read(matchScoringProvider.notifier).recordBall(
-      matchId: widget.matchId,
-      runs: runs,
-      isExtra: false,
-    );
+          matchId: widget.matchId,
+          runs: runs,
+          isExtra: false,
+        );
   }
 
   void _recordExtra(String type) {
     ref.read(matchScoringProvider.notifier).recordExtra(
-      matchId: widget.matchId,
-      type: type,
-    );
+          matchId: widget.matchId,
+          type: type,
+        );
   }
 
   void _showWicketDialog(BuildContext context) {
@@ -382,9 +390,9 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
 
   void _recordWicket(String type) {
     ref.read(matchScoringProvider.notifier).recordWicket(
-      matchId: widget.matchId,
-      type: type,
-    );
+          matchId: widget.matchId,
+          type: type,
+        );
   }
 
   void _showUndoDialog(BuildContext context) {
@@ -401,7 +409,9 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ref.read(matchScoringProvider.notifier).undoLastBall(widget.matchId);
+              ref
+                  .read(matchScoringProvider.notifier)
+                  .undoLastBall(widget.matchId);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Undo'),
@@ -432,7 +442,9 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ref.read(matchScoringProvider.notifier).switchInnings(widget.matchId);
+              ref
+                  .read(matchScoringProvider.notifier)
+                  .switchInnings(widget.matchId);
             },
             child: const Text('Switch'),
           ),

@@ -23,7 +23,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadMatches();
   }
 
@@ -45,6 +45,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final matchesState = ref.watch(matchesProvider);
+    final currentUserId = authState.user?.id;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -66,10 +67,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           tabs: const [
             Tab(text: 'Live'),
             Tab(text: 'Completed'),
             Tab(text: 'My Matches'),
+            Tab(icon: Icon(Icons.mail_outline, size: 18), text: 'Invitations'),
           ],
         ),
       ),
@@ -78,43 +81,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           // Filter chips
           Container(
             padding: const EdgeInsets.symmetric(horizontal: kDefaultPadding, vertical: 8),
-            child: Row(
-              children: [
-                FilterChip(
-                  label: const Text('All'),
-                  selected: _selectedFilter == 'all',
-                  onSelected: (selected) {
-                    setState(() => _selectedFilter = 'all');
-                    ref.read(matchesProvider.notifier).filterMatches('all');
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Quick'),
-                  selected: _selectedFilter == 'quick',
-                  onSelected: (selected) {
-                    setState(() => _selectedFilter = 'quick');
-                    ref.read(matchesProvider.notifier).filterMatches('quick');
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Tournament'),
-                  selected: _selectedFilter == 'tournament',
-                  onSelected: (selected) {
-                    setState(() => _selectedFilter = 'tournament');
-                    ref.read(matchesProvider.notifier).filterMatches('tournament');
-                  },
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _refreshMatches,
-                ),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip('All', 'all'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Quick', 'quick'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Dual Captain', 'dual_captain'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Tournament', 'tournament'),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 20),
+                    onPressed: _refreshMatches,
+                  ),
+                ],
+              ),
             ),
           ),
-          
+
           // Tab content
           Expanded(
             child: matchesState.when(
@@ -124,28 +111,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 onRetry: _loadMatches,
               ),
               data: (matches) {
+                // Apply type filter
+                final filtered = _selectedFilter == 'all'
+                    ? matches
+                    : matches.where((m) => m.matchType == _selectedFilter).toList();
+
                 return TabBarView(
                   controller: _tabController,
                   children: [
                     // Live matches
                     _buildMatchesList(
-                      matches.where((m) => m.status == 'live').toList(),
+                      filtered.where((m) => m.status == 'live').toList(),
                       'No live matches',
                       'Live matches will appear here',
+                      Icons.sports_cricket_outlined,
                     ),
-                    
+
                     // Completed matches
                     _buildMatchesList(
-                      matches.where((m) => m.status == 'finished').toList(),
+                      filtered.where((m) => m.status == 'finished').toList(),
                       'No completed matches',
                       'Completed matches will appear here',
+                      Icons.emoji_events_outlined,
                     ),
-                    
-                    // My matches
+
+                    // My matches (hosted by me or I'm opponent captain)
                     _buildMatchesList(
-                      matches.where((m) => m.hostUserId == authState.user?.id).toList(),
-                      'No matches hosted by you',
-                      'Matches you create will appear here',
+                      filtered.where((m) =>
+                          m.hostUserId == currentUserId ||
+                          m.opponentCaptainId == currentUserId).toList(),
+                      'No matches yet',
+                      'Matches you create or join will appear here',
+                      Icons.person_outline,
+                    ),
+
+                    // Invitations (I'm the opponent captain, status = invited)
+                    _buildMatchesList(
+                      matches.where((m) =>
+                          m.opponentCaptainId == currentUserId &&
+                          m.status == 'invited').toList(),
+                      'No pending invitations',
+                      'Match invitations from other captains will appear here',
+                      Icons.mail_outline,
+                      isInvitations: true,
                     ),
                   ],
                 );
@@ -164,14 +172,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildMatchesList(List<Match> matches, String emptyTitle, String emptySubtitle) {
+  Widget _buildFilterChip(String label, String filter) {
+    return FilterChip(
+      label: Text(label),
+      selected: _selectedFilter == filter,
+      onSelected: (selected) {
+        setState(() => _selectedFilter = selected ? filter : 'all');
+        ref.read(matchesProvider.notifier).filterMatches(selected ? filter : 'all');
+      },
+    );
+  }
+
+  Widget _buildMatchesList(
+    List<Match> matches,
+    String emptyTitle,
+    String emptySubtitle,
+    IconData emptyIcon, {
+    bool isInvitations = false,
+  }) {
     if (matches.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.sports_cricket_outlined,
+              emptyIcon,
               size: 64,
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
             ),
@@ -179,15 +204,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             Text(
               emptyTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               emptySubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -206,11 +231,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             padding: const EdgeInsets.only(bottom: 12),
             child: MatchCardWidget(
               match: match,
-              onTap: () => context.push('/match/${match.id}'),
+              onTap: () {
+                // Dual captain matches in progress → go to lobby
+                if (match.isDualCaptain && _isDualCaptainInProgress(match.status)) {
+                  context.push('/match/${match.id}/lobby');
+                } else {
+                  context.push('/match/${match.id}');
+                }
+              },
             ),
           );
         },
       ),
     );
+  }
+
+  bool _isDualCaptainInProgress(String status) {
+    return ['created', 'invited', 'accepted', 'teams_ready',
+            'rules_proposed', 'rules_approved', 'toss_done'].contains(status);
   }
 }

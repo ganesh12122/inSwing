@@ -26,7 +26,6 @@ class ApiService {
       // Auth interceptor
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Add auth token if available
           final token = await StorageService.getAuthToken();
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -34,24 +33,18 @@ class ApiService {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          // Handle token refresh on 401
           if (error.response?.statusCode == 401) {
-            // Attempt to refresh token
             final refreshToken = await StorageService.getRefreshToken();
             if (refreshToken != null) {
               try {
                 final refreshResponse = await _refreshToken(refreshToken);
                 final newToken = refreshResponse['access_token'];
-                
-                // Store new token
                 await StorageService.storeAuthToken(newToken);
-                
-                // Retry original request
-                error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+                error.requestOptions.headers['Authorization'] =
+                    'Bearer $newToken';
                 final retryResponse = await _dio.fetch(error.requestOptions);
                 return handler.resolve(retryResponse);
               } catch (e) {
-                // Refresh failed, logout
                 await StorageService.clearSecureStorage();
                 return handler.reject(error);
               }
@@ -74,7 +67,10 @@ class ApiService {
     ]);
   }
 
-  /// Refresh authentication token
+  // ===========================================================================
+  // AUTH
+  // ===========================================================================
+
   Future<Map<String, dynamic>> _refreshToken(String refreshToken) async {
     final response = await _dio.post('/auth/refresh', data: {
       'refresh_token': refreshToken,
@@ -82,7 +78,6 @@ class ApiService {
     return response.data;
   }
 
-  /// Request OTP for phone number
   Future<bool> requestOtp(String phoneNumber) async {
     try {
       final response = await _dio.post('/auth/request-otp', data: {
@@ -94,7 +89,6 @@ class ApiService {
     }
   }
 
-  /// Verify OTP and login
   Future<Map<String, dynamic>> verifyOtpAndLogin(
     String phoneNumber,
     String otp,
@@ -110,7 +104,29 @@ class ApiService {
     }
   }
 
-  /// Get current user
+  Future<void> logout() async {
+    try {
+      await _dio.post('/auth/logout');
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
+    try {
+      final response = await _dio.post('/auth/refresh', data: {
+        'refresh_token': refreshToken,
+      });
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ===========================================================================
+  // USERS
+  // ===========================================================================
+
   Future<User> getUser(String userId) async {
     try {
       final response = await _dio.get('/users/$userId');
@@ -120,20 +136,16 @@ class ApiService {
     }
   }
 
-  /// Get user profile
   Future<UserProfile?> getUserProfile(String userId) async {
     try {
       final response = await _dio.get('/users/$userId/profile');
       return UserProfile.fromJson(response.data);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        return null;
-      }
+      if (e.response?.statusCode == 404) return null;
       throw _handleError(e);
     }
   }
 
-  /// Update user profile
   Future<UserProfile> updateUserProfile(UserProfile profile) async {
     try {
       final response = await _dio.put(
@@ -146,61 +158,28 @@ class ApiService {
     }
   }
 
-  /// Logout user
-  Future<void> logout() async {
+  /// Search users by phone number or name
+  Future<List<User>> searchUsers(String query) async {
     try {
-      await _dio.post('/auth/logout');
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  /// Refresh token
-  Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
-    try {
-      final response = await _dio.post('/auth/refresh', data: {
-        'refresh_token': refreshToken,
+      final response = await _dio.get('/search/users', queryParameters: {
+        'q': query,
       });
-      return response.data;
+      final data = response.data;
+      if (data is Map && data.containsKey('users')) {
+        return (data['users'] as List)
+            .map((json) => User.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
+      }
+      return [];
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  /// Get matches
-  Future<List<Match>> getMatches({
-    String? status,
-    String? userId,
-    int? limit,
-    int? offset,
-  }) async {
-    try {
-      final response = await _dio.get('/matches', queryParameters: {
-        if (status != null) 'status': status,
-        if (userId != null) 'user_id': userId,
-        if (limit != null) 'limit': limit,
-        if (offset != null) 'offset': offset,
-      });
-      
-      return (response.data as List)
-          .map((json) => Match.fromJson(json))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
+  // ===========================================================================
+  // MATCHES — CRUD
+  // ===========================================================================
 
-  /// Get match details
-  Future<Match> getMatch(String matchId) async {
-    try {
-      final response = await _dio.get('/matches/$matchId');
-      return Match.fromJson(response.data);
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  /// Create new match
   Future<Match> createMatch(Map<String, dynamic> matchData) async {
     try {
       final response = await _dio.post('/matches', data: matchData);
@@ -210,12 +189,68 @@ class ApiService {
     }
   }
 
-  /// Update match status
+  Future<List<Match>> getMatches({
+    String? status,
+    String? matchType,
+    String? userId,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    try {
+      final response = await _dio.get('/matches', queryParameters: {
+        if (status != null) 'status': status,
+        if (matchType != null) 'match_type': matchType,
+        if (userId != null) 'user_id': userId,
+        'page': page,
+        'per_page': perPage,
+      });
+
+      final data = response.data;
+      if (data is Map && data.containsKey('matches')) {
+        return (data['matches'] as List)
+            .map((json) => Match.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
+      }
+      if (data is List) {
+        return data.map((json) => Match.fromJson(json)).toList();
+      }
+      return [];
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<List<Match>> getMyMatches({String? status}) async {
+    try {
+      final response = await _dio.get('/matches/my', queryParameters: {
+        if (status != null) 'status': status,
+      });
+      final data = response.data;
+      if (data is Map && data.containsKey('matches')) {
+        return (data['matches'] as List)
+            .map((json) => Match.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
+      }
+      return [];
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Match> getMatch(String matchId) async {
+    try {
+      final response = await _dio.get('/matches/$matchId');
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Future<Match> updateMatchStatus(String matchId, String status) async {
     try {
       final response = await _dio.put(
         '/matches/$matchId/status',
-        data: {'status': status},
+        queryParameters: {'new_status': status},
       );
       return Match.fromJson(response.data);
     } on DioException catch (e) {
@@ -223,8 +258,206 @@ class ApiService {
     }
   }
 
-  /// Record ball
-  Future<Ball> recordBall(String matchId, String inningsId, Map<String, dynamic> ballData) async {
+  Future<Map<String, dynamic>> cancelMatch(String matchId) async {
+    try {
+      final response = await _dio.delete('/matches/$matchId');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ===========================================================================
+  // MATCHES — INVITATION FLOW
+  // ===========================================================================
+
+  /// Send invitation to opponent captain
+  Future<Match> inviteOpponent({
+    required String matchId,
+    required String opponentUserId,
+    String? message,
+  }) async {
+    try {
+      final response = await _dio.post('/matches/$matchId/invite', data: {
+        'opponent_user_id': opponentUserId,
+        if (message != null) 'message': message,
+      });
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Accept a match invitation
+  Future<Match> acceptInvitation({
+    required String matchId,
+    required String teamBName,
+  }) async {
+    try {
+      final response = await _dio.post('/matches/$matchId/accept', data: {
+        'team_b_name': teamBName,
+      });
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Decline a match invitation
+  Future<Map<String, dynamic>> declineInvitation(String matchId) async {
+    try {
+      final response = await _dio.post('/matches/$matchId/decline');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ===========================================================================
+  // MATCHES — TEAM MANAGEMENT
+  // ===========================================================================
+
+  /// Add player to captain's team
+  Future<Map<String, dynamic>> addPlayerToTeam({
+    required String matchId,
+    String? userId,
+    String? guestName,
+    String role = 'batsman',
+  }) async {
+    try {
+      final response =
+          await _dio.post('/matches/$matchId/team/players', data: {
+        if (userId != null) 'user_id': userId,
+        if (guestName != null) 'guest_name': guestName,
+        'role': role,
+      });
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Remove player from captain's team
+  Future<Map<String, dynamic>> removePlayerFromTeam({
+    required String matchId,
+    required String playerRecordId,
+  }) async {
+    try {
+      final response =
+          await _dio.delete('/matches/$matchId/team/players/$playerRecordId');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Mark team as ready/unready
+  Future<Match> setTeamReady({
+    required String matchId,
+    bool ready = true,
+  }) async {
+    try {
+      final response = await _dio.put('/matches/$matchId/team/ready', data: {
+        'ready': ready,
+      });
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Get both teams' player lists
+  Future<TeamsResponse> getTeams(String matchId) async {
+    try {
+      final response = await _dio.get('/matches/$matchId/teams');
+      return TeamsResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ===========================================================================
+  // MATCHES — RULES NEGOTIATION
+  // ===========================================================================
+
+  /// Propose rules
+  Future<Match> proposeRules({
+    required String matchId,
+    required Map<String, dynamic> rules,
+  }) async {
+    try {
+      final response =
+          await _dio.post('/matches/$matchId/rules/propose', data: {
+        'rules': rules,
+      });
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Approve proposed rules
+  Future<Match> approveRules(String matchId) async {
+    try {
+      final response = await _dio.post('/matches/$matchId/rules/approve');
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Counter-propose rules
+  Future<Match> counterRules({
+    required String matchId,
+    required Map<String, dynamic> rules,
+  }) async {
+    try {
+      final response =
+          await _dio.post('/matches/$matchId/rules/counter', data: {
+        'rules': rules,
+      });
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Get rules + approval status
+  Future<Map<String, dynamic>> getRules(String matchId) async {
+    try {
+      final response = await _dio.get('/matches/$matchId/rules');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ===========================================================================
+  // MATCHES — TOSS
+  // ===========================================================================
+
+  Future<Match> recordToss({
+    required String matchId,
+    required String tossWinner,
+    required String tossDecision,
+  }) async {
+    try {
+      final response = await _dio.put('/matches/$matchId/toss', data: {
+        'toss_winner': tossWinner,
+        'toss_decision': tossDecision,
+      });
+      return Match.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ===========================================================================
+  // SCORING
+  // ===========================================================================
+
+  Future<Ball> recordBall(
+      String matchId, String inningsId, Map<String, dynamic> ballData) async {
     try {
       final response = await _dio.post(
         '/matches/$matchId/innings/$inningsId/ball',
@@ -236,11 +469,10 @@ class ApiService {
     }
   }
 
-  /// Get innings balls
   Future<List<Ball>> getInningsBalls(String matchId, String inningsId) async {
     try {
-      final response = await _dio.get('/matches/$matchId/innings/$inningsId/balls');
-      
+      final response =
+          await _dio.get('/matches/$matchId/innings/$inningsId/balls');
       return (response.data as List)
           .map((json) => Ball.fromJson(json))
           .toList();
@@ -249,7 +481,6 @@ class ApiService {
     }
   }
 
-  /// Record ball for match scoring
   Future<Match> recordMatchBall({
     required String matchId,
     required int runs,
@@ -268,7 +499,6 @@ class ApiService {
     }
   }
 
-  /// Record wicket for match scoring
   Future<Match> recordWicket({
     required String matchId,
     required String type,
@@ -283,7 +513,6 @@ class ApiService {
     }
   }
 
-  /// Undo last ball
   Future<Match> undoLastBall(String matchId) async {
     try {
       final response = await _dio.delete('/matches/$matchId/last-ball');
@@ -293,7 +522,6 @@ class ApiService {
     }
   }
 
-  /// Switch innings
   Future<Match> switchInnings(String matchId) async {
     try {
       final response = await _dio.post('/matches/$matchId/switch-innings');
@@ -303,7 +531,10 @@ class ApiService {
     }
   }
 
-  /// Get player statistics
+  // ===========================================================================
+  // PLAYERS
+  // ===========================================================================
+
   Future<PlayerStats> getPlayerStats(String playerId) async {
     try {
       final response = await _dio.get('/players/$playerId/stats');
@@ -313,11 +544,7 @@ class ApiService {
     }
   }
 
-
-  /// End over
-  Future<void> endOver({
-    required String matchId,
-  }) async {
+  Future<void> endOver({required String matchId}) async {
     try {
       await _dio.post('/matches/$matchId/end-over');
     } on DioException catch (e) {
@@ -325,10 +552,7 @@ class ApiService {
     }
   }
 
-  /// End innings
-  Future<void> endInnings({
-    required String matchId,
-  }) async {
+  Future<void> endInnings({required String matchId}) async {
     try {
       await _dio.post('/matches/$matchId/end-innings');
     } on DioException catch (e) {
@@ -336,8 +560,12 @@ class ApiService {
     }
   }
 
-  /// Sync offline queue
-  Future<Map<String, dynamic>> syncOfflineQueue(List<Map<String, dynamic>> queue) async {
+  // ===========================================================================
+  // OFFLINE SYNC
+  // ===========================================================================
+
+  Future<Map<String, dynamic>> syncOfflineQueue(
+      List<Map<String, dynamic>> queue) async {
     try {
       final response = await _dio.post('/matches/sync', data: {
         'events': queue,
@@ -348,7 +576,10 @@ class ApiService {
     }
   }
 
-  /// Handle API errors
+  // ===========================================================================
+  // ERROR HANDLING
+  // ===========================================================================
+
   String _handleError(DioException error) {
     if (error.response?.data is Map<String, dynamic>) {
       final data = error.response!.data as Map<String, dynamic>;
@@ -358,7 +589,7 @@ class ApiService {
         return data['message'].toString();
       }
     }
-    
+
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
         return 'Connection timeout. Please check your internet connection.';

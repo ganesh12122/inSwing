@@ -6,6 +6,7 @@ import 'package:inswing/screens/auth/auth_screen.dart';
 import 'package:inswing/screens/home/home_screen.dart';
 import 'package:inswing/screens/match/create_match_screen.dart';
 import 'package:inswing/screens/match/match_detail_screen.dart';
+import 'package:inswing/screens/match/match_lobby_screen.dart';
 import 'package:inswing/screens/match/match_scoring_screen.dart';
 import 'package:inswing/screens/player/player_profile_screen.dart';
 import 'package:inswing/screens/profile/profile_screen.dart';
@@ -18,30 +19,21 @@ part 'app_router.g.dart';
 @riverpod
 GoRouter goRouter(Ref ref) {
   final authState = ref.watch(authProvider);
-  
+
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
     redirect: (context, state) {
-      // Check authentication status
       final isAuthenticated = authState.isAuthenticated;
-      final isLoggingIn = state.matchedLocation == '/login' || 
-                         state.matchedLocation == '/verify-otp';
-      
-      // Redirect to login if not authenticated and not already on login page
-      if (!isAuthenticated && !isLoggingIn) {
-        return '/login';
-      }
-      
-      // Redirect to home if authenticated and on login page
-      if (isAuthenticated && isLoggingIn) {
-        return '/home';
-      }
-      
+      final isLoggingIn = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/verify-otp';
+
+      if (!isAuthenticated && !isLoggingIn) return '/login';
+      if (isAuthenticated && isLoggingIn) return '/home';
       return null;
     },
     routes: [
-      // Authentication routes
+      // Auth routes
       GoRoute(
         path: '/login',
         name: 'login',
@@ -55,8 +47,8 @@ GoRouter goRouter(Ref ref) {
           return AuthScreen(isLoginMode: false, phoneNumber: phoneNumber);
         },
       ),
-      
-      // Main app routes (authenticated)
+
+      // Main app routes
       GoRoute(
         path: '/home',
         name: 'home',
@@ -69,7 +61,7 @@ GoRouter goRouter(Ref ref) {
           ),
         ],
       ),
-      
+
       // Match routes
       GoRoute(
         path: '/match/:id',
@@ -80,20 +72,30 @@ GoRouter goRouter(Ref ref) {
           return MatchDetailScreen(matchId: matchId, isHost: isHost);
         },
       ),
-      
+
+      // Match lobby — dual captain lifecycle hub
+      GoRoute(
+        path: '/match/:id/lobby',
+        name: 'match-lobby',
+        builder: (context, state) {
+          final matchId = state.pathParameters['id']!;
+          return MatchLobbyScreen(matchId: matchId);
+        },
+      ),
+
       GoRoute(
         path: '/match/:id/score',
         name: 'match-scoring',
         builder: (context, state) {
           final matchId = state.pathParameters['id']!;
-          final isHost = state.extra as Map<String, dynamic>? ?? {'is_host': false};
+          final extra = state.extra as Map<String, dynamic>? ?? {'is_host': false};
           return MatchScoringScreen(
             matchId: matchId,
-            isHost: isHost['is_host'] as bool,
+            isHost: extra['is_host'] as bool,
           );
         },
       ),
-      
+
       // Profile routes
       GoRoute(
         path: '/profile/:id',
@@ -103,7 +105,6 @@ GoRouter goRouter(Ref ref) {
           return ProfileScreen(userId: userId);
         },
       ),
-      
       GoRoute(
         path: '/player/:id',
         name: 'player-profile',
@@ -112,14 +113,14 @@ GoRouter goRouter(Ref ref) {
           return PlayerProfileScreen(playerId: playerId);
         },
       ),
-      
-      // Settings route
+
+      // Settings
       GoRoute(
         path: '/settings',
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
       ),
-      
+
       // Root redirect
       GoRoute(
         path: '/',

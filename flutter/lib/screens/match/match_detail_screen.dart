@@ -41,7 +41,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           if (widget.isHost) ...[
             IconButton(
               icon: const Icon(Icons.sports_score),
-              onPressed: () => context.push('/match/${widget.matchId}/score', extra: {'is_host': true}),
+              onPressed: () => context.push('/match/${widget.matchId}/score',
+                  extra: {'is_host': true}),
             ),
           ],
         ],
@@ -50,7 +51,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         loading: () => const LoadingWidget(message: 'Loading match...'),
         error: (error, stack) => widgets.ErrorDisplay(
           message: error.toString(),
-          onRetry: () => ref.read(matchScoringProvider.notifier).loadMatch(widget.matchId),
+          onRetry: () =>
+              ref.read(matchScoringProvider.notifier).loadMatch(widget.matchId),
         ),
         data: (match) => _buildMatchDetails(match, theme),
       ),
@@ -71,7 +73,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${match.teamAName} vs ${match.teamBName}',
+                    '${match.teamAName} vs ${match.teamBName ?? "TBD"}',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -85,9 +87,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Team scores card
           Card(
             child: Padding(
@@ -120,7 +122,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                         ),
                       ),
                       _buildTeamScoreCard(
-                        teamName: match.teamBName,
+                        teamName: match.teamBName ?? 'TBD',
                         runs: match.teamBRuns ?? 0,
                         wickets: match.teamBWickets ?? 0,
                         overs: match.teamBOvers ?? 0.0,
@@ -133,9 +135,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Match rules card
           Card(
             child: Padding(
@@ -151,15 +153,16 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text('Overs: ${match.rules['overs'] ?? 'Not set'}'),
-                  Text('Powerplay: ${match.rules['powerplay_overs'] ?? 'Not set'}'),
+                  Text(
+                      'Powerplay: ${match.rules['powerplay_overs'] ?? 'Not set'}'),
                   Text('Extras: ${match.rules['extras_rules'] ?? 'Standard'}'),
                 ],
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Action buttons
           if (widget.isHost) ...[
             Row(
@@ -206,7 +209,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isBatting ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
+        color:
+            isBatting ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isBatting ? theme.colorScheme.primary : Colors.transparent,
