@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:inswing/models/match_model.dart';
 import 'package:inswing/services/api_service.dart';
 import 'package:inswing/services/storage_service.dart';
@@ -9,28 +11,34 @@ part 'match_scoring_provider.g.dart';
 class MatchScoring extends _$MatchScoring {
   @override
   Future<Match> build() async {
-    // Initial state - will be loaded when screen initializes
-    throw UnimplementedError('Match must be loaded first');
+    // This provider requires loadMatch() to be called after construction.
+    // Return a "never completing" future so the UI shows loading state
+    // until loadMatch() is explicitly called.
+    final completer = Completer<Match>();
+    ref.onDispose(() {
+      if (!completer.isCompleted) completer.completeError('disposed');
+    });
+    return completer.future;
   }
 
   Future<void> loadMatch(String matchId) async {
     state = const AsyncValue.loading();
-    
+
     try {
       final apiService = ref.read(apiServiceProvider);
-      
+
       // Try to load from local storage first
       final localMatch = await StorageService.getMatch(matchId);
       if (localMatch != null) {
         state = AsyncValue.data(localMatch);
       }
-      
+
       // Then fetch from API to get latest updates
       final match = await apiService.getMatch(matchId);
-      
+
       // Cache the match locally
       await StorageService.saveMatch(match);
-      
+
       state = AsyncValue.data(match);
     } catch (e) {
       state = AsyncValue.error(e, StackTrace.current);
@@ -48,7 +56,7 @@ class MatchScoring extends _$MatchScoring {
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      
+
       // Record the ball through API
       final updatedMatch = await apiService.recordMatchBall(
         matchId: matchId,
@@ -56,10 +64,10 @@ class MatchScoring extends _$MatchScoring {
         isExtra: isExtra,
         extraType: extraType,
       );
-      
+
       // Update local cache
       await StorageService.saveMatch(updatedMatch);
-      
+
       state = AsyncValue.data(updatedMatch);
     } catch (e) {
       // If API fails, queue for offline sync
@@ -69,7 +77,7 @@ class MatchScoring extends _$MatchScoring {
         'isExtra': isExtra,
         'extraType': extraType,
       });
-      
+
       // Update local state optimistically
       final updatedMatch = _updateMatchLocally(currentMatch, {
         'type': 'ball',
@@ -77,7 +85,7 @@ class MatchScoring extends _$MatchScoring {
         'isExtra': isExtra,
         'extraType': extraType,
       });
-      
+
       state = AsyncValue.data(updatedMatch);
     }
   }
@@ -103,12 +111,12 @@ class MatchScoring extends _$MatchScoring {
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      
+
       final updatedMatch = await apiService.recordWicket(
         matchId: matchId,
         type: type,
       );
-      
+
       await StorageService.saveMatch(updatedMatch);
       state = AsyncValue.data(updatedMatch);
     } catch (e) {
@@ -116,12 +124,12 @@ class MatchScoring extends _$MatchScoring {
         'matchId': matchId,
         'type': type,
       });
-      
+
       final updatedMatch = _updateMatchLocally(currentMatch, {
         'type': 'wicket',
         'wicketType': type,
       });
-      
+
       state = AsyncValue.data(updatedMatch);
     }
   }
@@ -132,9 +140,9 @@ class MatchScoring extends _$MatchScoring {
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      
+
       final updatedMatch = await apiService.undoLastBall(matchId);
-      
+
       await StorageService.saveMatch(updatedMatch);
       state = AsyncValue.data(updatedMatch);
     } catch (e) {
@@ -148,9 +156,9 @@ class MatchScoring extends _$MatchScoring {
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      
+
       final updatedMatch = await apiService.switchInnings(matchId);
-      
+
       await StorageService.saveMatch(updatedMatch);
       state = AsyncValue.data(updatedMatch);
     } catch (e) {
@@ -158,7 +166,8 @@ class MatchScoring extends _$MatchScoring {
     }
   }
 
-  Future<void> _queueOfflineAction(String action, Map<String, dynamic> data) async {
+  Future<void> _queueOfflineAction(
+      String action, Map<String, dynamic> data) async {
     await StorageService.addToOfflineQueue({
       'action': action,
       'data': data,

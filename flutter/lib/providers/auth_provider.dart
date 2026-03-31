@@ -70,7 +70,7 @@ class Auth extends _$Auth {
   // Email + Password Auth (primary flow)
   // ===========================================================================
 
-  /// Register with email + password
+  /// Register with email + password (does NOT auto-login)
   Future<bool> register({
     required String fullName,
     required String email,
@@ -79,12 +79,14 @@ class Auth extends _$Auth {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final authResponse = await _apiService.register(
+      // Just call register API — don't store tokens or set authenticated
+      await _apiService.register(
         fullName: fullName,
         email: email,
         password: password,
       );
-      return _handleAuthResponse(authResponse);
+      state = state.copyWith(isLoading: false);
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;

@@ -14,10 +14,6 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
-Match _$MatchFromJson(Map<String, dynamic> json) {
-  return _Match.fromJson(json);
-}
-
 /// @nodoc
 mixin _$Match {
   String get id => throw _privateConstructorUsedError;
@@ -66,9 +62,6 @@ mixin _$Match {
   int? get teamBRuns => throw _privateConstructorUsedError;
   int? get teamBWickets => throw _privateConstructorUsedError;
   double? get teamBOvers => throw _privateConstructorUsedError;
-
-  /// Serializes this Match to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Match
   /// with the given fields replaced by the non-null parameter values.
@@ -639,7 +632,7 @@ class __$$MatchImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-@JsonSerializable()
+
 class _$MatchImpl implements _Match {
   const _$MatchImpl(
       {required this.id,
@@ -687,9 +680,6 @@ class _$MatchImpl implements _Match {
       : _rules = rules,
         _proposedRules = proposedRules,
         _result = result;
-
-  factory _$MatchImpl.fromJson(Map<String, dynamic> json) =>
-      _$$MatchImplFromJson(json);
 
   @override
   final String id;
@@ -907,7 +897,6 @@ class _$MatchImpl implements _Match {
                 other.teamBOvers == teamBOvers));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hashAll([
         runtimeType,
@@ -962,13 +951,6 @@ class _$MatchImpl implements _Match {
   @pragma('vm:prefer-inline')
   _$$MatchImplCopyWith<_$MatchImpl> get copyWith =>
       __$$MatchImplCopyWithImpl<_$MatchImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$MatchImplToJson(
-      this,
-    );
-  }
 }
 
 abstract class _Match implements Match {
@@ -1015,8 +997,6 @@ abstract class _Match implements Match {
       final int? teamBRuns,
       final int? teamBWickets,
       final double? teamBOvers}) = _$MatchImpl;
-
-  factory _Match.fromJson(Map<String, dynamic> json) = _$MatchImpl.fromJson;
 
   @override
   String get id;

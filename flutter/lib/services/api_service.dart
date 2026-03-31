@@ -245,7 +245,7 @@ class ApiService {
     int perPage = 20,
   }) async {
     try {
-      final response = await _dio.get('/matches', queryParameters: {
+      final response = await _dio.get('/matches/', queryParameters: {
         if (status != null) 'status': status,
         if (matchType != null) 'match_type': matchType,
         if (userId != null) 'user_id': userId,
