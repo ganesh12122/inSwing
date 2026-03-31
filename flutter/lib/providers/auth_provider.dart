@@ -35,40 +35,117 @@ class Auth extends _$Auth {
   Future<void> _initializeAuth() async {
     final token = await StorageService.getAuthToken();
     final userId = await StorageService.getUserId();
-    
+
     if (token != null && userId != null) {
+      // We have stored credentials — mark as authenticated immediately
+      // so the router doesn't kick us back to /login
+      state = state.copyWith(isAuthenticated: true, isLoading: false);
+
       try {
-        // Validate token and fetch user data
+        // Try to fetch fresh user data in the background
         final user = await _apiService.getUser(userId);
-        final userProfile = await _apiService.getUserProfile(userId);
-        
+        UserProfile? userProfile;
+        try {
+          userProfile = await _apiService.getUserProfile(userId);
+        } catch (_) {
+          // Profile fetch failed — not critical
+        }
+
         state = state.copyWith(
           user: user,
           userProfile: userProfile,
-          isAuthenticated: true,
-          isLoading: false,
         );
       } catch (e) {
-        // Token invalid or expired
-        await logout();
+        // If getUser fails with 401, token is truly expired → logout
+        // Otherwise just keep the authenticated state with no user details
+        if (e.toString().contains('401') ||
+            e.toString().contains('Unauthorized')) {
+          await logout();
+        }
       }
     }
   }
 
+  // ===========================================================================
+  // Email + Password Auth (primary flow)
+  // ===========================================================================
+
+  /// Register with email + password
+  Future<bool> register({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final authResponse = await _apiService.register(
+        fullName: fullName,
+        email: email,
+        password: password,
+      );
+      return _handleAuthResponse(authResponse);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// Login with email + password
+  Future<bool> login({
+    required String email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final authResponse = await _apiService.emailLogin(
+        email: email,
+        password: password,
+      );
+      return _handleAuthResponse(authResponse);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// Common handler for auth responses (register/login both return same shape)
+  Future<bool> _handleAuthResponse(Map<String, dynamic> authResponse) async {
+    final tokens = authResponse['tokens'] as Map<String, dynamic>;
+    final userData = authResponse['user'] as Map<String, dynamic>;
+
+    // Store tokens
+    await StorageService.storeAuthToken(tokens['access_token']);
+    await StorageService.storeRefreshToken(tokens['refresh_token']);
+    await StorageService.storeUserId(userData['id']);
+
+    // Parse user
+    final user = User.fromJson(userData);
+
+    state = state.copyWith(
+      user: user,
+      isAuthenticated: true,
+      isLoading: false,
+    );
+
+    return true;
+  }
+
+  // ===========================================================================
+  // OTP Auth (for future phone verification)
+  // ===========================================================================
+
   /// Request OTP for phone number.
-  /// Returns a Map with session_id and optionally otp_code (dev mode).
   Future<Map<String, dynamic>?> requestOtp(String phoneNumber) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final response = await _apiService.requestOtp(phoneNumber);
       state = state.copyWith(isLoading: false);
       return response;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
       return null;
     }
   }
@@ -76,37 +153,12 @@ class Auth extends _$Auth {
   /// Verify OTP and login using session_id
   Future<bool> verifyOtpAndLogin(String sessionId, String otp) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
-      final authResponse = await _apiService.verifyOtpAndLogin(
-        sessionId,
-        otp,
-      );
-      
-      // Backend returns: { user: {...}, tokens: { access_token, refresh_token, ... } }
-      final tokens = authResponse['tokens'] as Map<String, dynamic>;
-      final userData = authResponse['user'] as Map<String, dynamic>;
-      
-      // Store tokens
-      await StorageService.storeAuthToken(tokens['access_token']);
-      await StorageService.storeRefreshToken(tokens['refresh_token']);
-      await StorageService.storeUserId(userData['id']);
-      
-      // Fetch user data
-      final user = User.fromJson(userData);
-      
-      state = state.copyWith(
-        user: user,
-        isAuthenticated: true,
-        isLoading: false,
-      );
-      
-      return true;
+      final authResponse = await _apiService.verifyOtpAndLogin(sessionId, otp);
+      return _handleAuthResponse(authResponse);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
   }
@@ -114,7 +166,7 @@ class Auth extends _$Auth {
   /// Logout user
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
-    
+
     try {
       await _apiService.logout();
     } catch (e) {
@@ -122,7 +174,7 @@ class Auth extends _$Auth {
     } finally {
       // Clear storage
       await StorageService.clearSecureStorage();
-      
+
       // Reset state
       state = const AuthState(
         isAuthenticated: false,
@@ -136,13 +188,13 @@ class Auth extends _$Auth {
     try {
       final refreshToken = await StorageService.getRefreshToken();
       if (refreshToken == null) return false;
-      
+
       final authResponse = await _apiService.refreshToken(refreshToken);
-      
+
       // Store new tokens
       await StorageService.storeAuthToken(authResponse['access_token']);
       await StorageService.storeRefreshToken(authResponse['refresh_token']);
-      
+
       return true;
     } catch (e) {
       // Refresh failed, logout

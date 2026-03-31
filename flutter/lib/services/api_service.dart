@@ -78,16 +78,55 @@ class ApiService {
     return response.data;
   }
 
+  // ===========================================================================
+  // AUTH — Email + Password (primary flow)
+  // ===========================================================================
+
+  /// Register a new account. Returns { user, tokens, message }.
+  Future<Map<String, dynamic>> register({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post('/auth/register', data: {
+        'full_name': fullName,
+        'email': email,
+        'password': password,
+      });
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// Login with email + password. Returns { user, tokens, message }.
+  Future<Map<String, dynamic>> emailLogin({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post('/auth/login', data: {
+        'email': email,
+        'password': password,
+      });
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ===========================================================================
+  // AUTH — OTP (for future phone verification)
+  // ===========================================================================
+
   /// Request OTP for the given phone number.
-  /// Returns a Map with session_id, message, and optionally otp_code (dev mode).
   Future<Map<String, dynamic>> requestOtp(String phoneNumber) async {
     try {
-      // Auto-prefix +91 for Indian numbers (raw 10 digits)
       String formattedPhone = phoneNumber;
       if (phoneNumber.length == 10 && !phoneNumber.startsWith('+')) {
         formattedPhone = '+91$phoneNumber';
       }
-      
       final response = await _dio.post('/auth/request-otp', data: {
         'phone_number': formattedPhone,
       });
@@ -97,8 +136,7 @@ class ApiService {
     }
   }
 
-  /// Verify OTP using session_id (not phone number).
-  /// Returns the full login response with nested tokens.
+  /// Verify OTP using session_id.
   Future<Map<String, dynamic>> verifyOtpAndLogin(
     String sessionId,
     String otp,
@@ -335,8 +373,7 @@ class ApiService {
     String role = 'batsman',
   }) async {
     try {
-      final response =
-          await _dio.post('/matches/$matchId/team/players', data: {
+      final response = await _dio.post('/matches/$matchId/team/players', data: {
         if (userId != null) 'user_id': userId,
         if (guestName != null) 'guest_name': guestName,
         'role': role,

@@ -31,7 +31,7 @@ from app.schemas.notification import (
     NotificationType, NotificationStatus, NotificationPriority, NotificationBase, NotificationCreate, NotificationUpdate, NotificationResponse
 )
 from app.schemas.otp import OTPCreate, OTPVerify, OTPResponse
-from app.schemas.auth import TokenResponse, RefreshTokenRequest, UserLoginResponse, LogoutResponse
+from app.schemas.auth import TokenResponse, RefreshTokenRequest, UserLoginResponse, LogoutResponse, RegisterRequest, EmailLoginRequest
 from app.schemas.leaderboard import (
     LeaderboardType, LeaderboardFilter, TimePeriod, LeaderboardEntry, LeaderboardResponse
 )
@@ -68,6 +68,7 @@ __all__ = [
     "OTPCreate", "OTPVerify", "OTPResponse",
     # Auth schemas
     "TokenResponse", "RefreshTokenRequest", "UserLoginResponse", "LogoutResponse",
+    "RegisterRequest", "EmailLoginRequest",
     # Leaderboard schemas
     "LeaderboardType", "LeaderboardFilter", "TimePeriod", "LeaderboardEntry", "LeaderboardResponse",
     # Search schemas

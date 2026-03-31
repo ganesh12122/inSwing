@@ -13,6 +13,10 @@ from app.auth.otp import (
     format_phone_number,
     validate_otp_code
 )
+from app.auth.password import (
+    hash_password,
+    verify_password,
+)
 
 # Export all auth utilities
 __all__ = [
@@ -25,5 +29,7 @@ __all__ = [
     "generate_expires_at",
     "is_valid_phone_number",
     "format_phone_number",
-    "validate_otp_code"
+    "validate_otp_code",
+    "hash_password",
+    "verify_password",
 ]

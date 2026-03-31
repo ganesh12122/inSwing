@@ -15,21 +15,42 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'app_router.g.dart';
 
+/// Notifier that GoRouter listens to for redirect re-evaluation.
+/// Only fires when isAuthenticated actually changes — NOT on every state update.
+class _AuthChangeNotifier extends ChangeNotifier {
+  bool _isAuthenticated = false;
+
+  void update(bool isAuthenticated) {
+    if (_isAuthenticated != isAuthenticated) {
+      _isAuthenticated = isAuthenticated;
+      notifyListeners();
+    }
+  }
+}
+
 /// App router configuration using go_router
 @riverpod
 GoRouter goRouter(Ref ref) {
-  final authState = ref.watch(authProvider);
+  final authNotifier = _AuthChangeNotifier();
+
+  // Listen to auth state — only triggers redirect when isAuthenticated changes
+  ref.listen(authProvider, (prev, next) {
+    authNotifier.update(next.isAuthenticated);
+  });
 
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
+    refreshListenable: authNotifier,
     redirect: (context, state) {
-      final isAuthenticated = authState.isAuthenticated;
-      final isLoggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/verify-otp';
+      // Read the CURRENT auth state (not captured at build time)
+      final container = ProviderScope.containerOf(context);
+      final isAuthenticated = container.read(authProvider).isAuthenticated;
+      final location = state.matchedLocation;
+      final isAuthRoute = location == '/login' || location == '/verify-otp';
 
-      if (!isAuthenticated && !isLoggingIn) return '/login';
-      if (isAuthenticated && isLoggingIn) return '/home';
+      if (!isAuthenticated && !isAuthRoute) return '/login';
+      if (isAuthenticated && isAuthRoute) return '/home';
       return null;
     },
     routes: [
@@ -93,7 +114,8 @@ GoRouter goRouter(Ref ref) {
         name: 'match-scoring',
         builder: (context, state) {
           final matchId = state.pathParameters['id']!;
-          final extra = state.extra as Map<String, dynamic>? ?? {'is_host': false};
+          final extra =
+              state.extra as Map<String, dynamic>? ?? {'is_host': false};
           return MatchScoringScreen(
             matchId: matchId,
             isHost: extra['is_host'] as bool,

@@ -7,8 +7,10 @@ from app.auth import (
     format_phone_number,
     generate_expires_at,
     generate_otp,
+    hash_password,
     is_valid_phone_number,
     validate_otp_code,
+    verify_password,
     verify_token,
 )
 from app.database import get_db
@@ -16,11 +18,13 @@ from app.dependencies import get_current_user_id
 from app.models.otp_session import OTPSession
 from app.models.user import User
 from app.schemas import (
+    EmailLoginRequest,
     LogoutResponse,
     OTPCreate,
     OTPResponse,
     OTPVerify,
     RefreshTokenRequest,
+    RegisterRequest,
     TokenResponse,
     UserLoginResponse,
 )
@@ -30,6 +34,98 @@ from sqlalchemy.orm import Session
 
 logger = structlog.get_logger()
 router = APIRouter()
+
+
+# =============================================================================
+# EMAIL + PASSWORD AUTH (primary flow)
+# =============================================================================
+
+
+@router.post("/register", response_model=UserLoginResponse)
+async def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    """Register a new user with email + password."""
+    # Check if email already taken
+    existing = db.query(User).filter(User.email == req.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered. Please login instead.",
+        )
+
+    # Create user
+    user = User(
+        full_name=req.full_name,
+        email=req.email,
+        password_hash=hash_password(req.password),
+        phone_number=req.phone_number,
+        role="player",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    logger.info("User registered", user_id=user.id, email=req.email)
+
+    # Issue JWT tokens immediately (no email verification for now)
+    access_token = create_access_token(data={"sub": user.id})
+    refresh_token = create_refresh_token(data={"sub": user.id})
+
+    return UserLoginResponse(
+        user=user.to_dict(),
+        tokens=TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        ),
+        message="Registration successful",
+    )
+
+
+@router.post("/login", response_model=UserLoginResponse)
+async def email_login(req: EmailLoginRequest, db: Session = Depends(get_db)):
+    """Login with email + password."""
+    user = db.query(User).filter(User.email == req.email).first()
+
+    if not user or not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    if not verify_password(req.password, user.password_hash):  # type: ignore
+        logger.warning("Failed login attempt", email=req.email)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    if not user.is_active:  # type: ignore
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated",
+        )
+
+    # Issue JWT tokens
+    access_token = create_access_token(data={"sub": user.id})
+    refresh_token = create_refresh_token(data={"sub": user.id})
+
+    logger.info("User logged in", user_id=user.id, email=req.email)
+
+    return UserLoginResponse(
+        user=user.to_dict(),
+        tokens=TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        ),
+    )
+
+
+# =============================================================================
+# OTP AUTH (for future phone verification / SMS login)
+# =============================================================================
 
 
 async def _handle_login(otp_request: OTPCreate, db: Session):

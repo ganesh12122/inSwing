@@ -12,8 +12,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    phone_number = Column(String(15), unique=True, nullable=False, index=True)
+    phone_number = Column(String(15), unique=True, nullable=True, index=True)
     email = Column(String(255), unique=True, nullable=True, index=True)
+    password_hash = Column(String(255), nullable=True)  # For email+password auth
     full_name = Column(String(255), nullable=False)
     avatar_url = Column(String(500), nullable=True)
     bio = Column(Text, nullable=True)

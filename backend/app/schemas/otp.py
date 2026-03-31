@@ -26,6 +26,4 @@ class OTPResponse(BaseModel):
     message: str = "OTP sent successfully"
     expires_in: int  # seconds until OTP expires
     attempts_remaining: int = 3  # remaining OTP attempts
-    otp_code: Optional[str] = (
-        None  # Only returned in DEBUG mode (dev convenience)    otp_code: Optional[str] = None  # Only returned in DEBUG mode (dev convenience)
-    )
+    otp_code: Optional[str] = None  # Only returned in DEBUG mode (dev convenience)

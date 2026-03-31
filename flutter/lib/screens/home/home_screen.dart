@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:inswing/models/match_model.dart';
 import 'package:inswing/providers/auth_provider.dart';
 import 'package:inswing/providers/matches_provider.dart';
+import 'package:inswing/services/storage_service.dart';
 import 'package:inswing/utils/constants.dart';
 import 'package:inswing/widgets/common/loading_widget.dart';
 import 'package:inswing/widgets/common/match_card_widget.dart';
@@ -16,7 +17,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedFilter = 'all';
 
@@ -24,7 +26,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _loadMatches();
+    // Delay loadMatches to avoid modifying provider during build phase
+    Future.microtask(() => _loadMatches());
   }
 
   @override
@@ -54,9 +57,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         actions: [
           IconButton(
             icon: const Icon(Icons.person_outline),
-            onPressed: () {
-              if (authState.user != null) {
-                context.push('/profile/${authState.user!.id}');
+            onPressed: () async {
+              final userId =
+                  authState.user?.id ?? await StorageService.getUserId();
+              if (userId != null && context.mounted) {
+                context.push('/profile/$userId');
               }
             },
           ),
@@ -80,7 +85,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         children: [
           // Filter chips
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: kDefaultPadding, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+                horizontal: kDefaultPadding, vertical: 8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -114,7 +120,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 // Apply type filter
                 final filtered = _selectedFilter == 'all'
                     ? matches
-                    : matches.where((m) => m.matchType == _selectedFilter).toList();
+                    : matches
+                        .where((m) => m.matchType == _selectedFilter)
+                        .toList();
 
                 return TabBarView(
                   controller: _tabController,
@@ -137,9 +145,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
                     // My matches (hosted by me or I'm opponent captain)
                     _buildMatchesList(
-                      filtered.where((m) =>
-                          m.hostUserId == currentUserId ||
-                          m.opponentCaptainId == currentUserId).toList(),
+                      filtered
+                          .where((m) =>
+                              m.hostUserId == currentUserId ||
+                              m.opponentCaptainId == currentUserId)
+                          .toList(),
                       'No matches yet',
                       'Matches you create or join will appear here',
                       Icons.person_outline,
@@ -147,9 +157,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
                     // Invitations (I'm the opponent captain, status = invited)
                     _buildMatchesList(
-                      matches.where((m) =>
-                          m.opponentCaptainId == currentUserId &&
-                          m.status == 'invited').toList(),
+                      matches
+                          .where((m) =>
+                              m.opponentCaptainId == currentUserId &&
+                              m.status == 'invited')
+                          .toList(),
                       'No pending invitations',
                       'Match invitations from other captains will appear here',
                       Icons.mail_outline,
@@ -178,7 +190,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       selected: _selectedFilter == filter,
       onSelected: (selected) {
         setState(() => _selectedFilter = selected ? filter : 'all');
-        ref.read(matchesProvider.notifier).filterMatches(selected ? filter : 'all');
+        ref
+            .read(matchesProvider.notifier)
+            .filterMatches(selected ? filter : 'all');
       },
     );
   }
@@ -198,20 +212,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             Icon(
               emptyIcon,
               size: 64,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               emptyTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.5),
                   ),
             ),
             const SizedBox(height: 8),
             Text(
               emptySubtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.4),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -233,7 +256,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               match: match,
               onTap: () {
                 // Dual captain matches in progress → go to lobby
-                if (match.isDualCaptain && _isDualCaptainInProgress(match.status)) {
+                if (match.isDualCaptain &&
+                    _isDualCaptainInProgress(match.status)) {
                   context.push('/match/${match.id}/lobby');
                 } else {
                   context.push('/match/${match.id}');
@@ -247,7 +271,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   }
 
   bool _isDualCaptainInProgress(String status) {
-    return ['created', 'invited', 'accepted', 'teams_ready',
-            'rules_proposed', 'rules_approved', 'toss_done'].contains(status);
+    return [
+      'created',
+      'invited',
+      'accepted',
+      'teams_ready',
+      'rules_proposed',
+      'rules_approved',
+      'toss_done'
+    ].contains(status);
   }
 }
