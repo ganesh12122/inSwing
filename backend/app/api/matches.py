@@ -109,18 +109,24 @@ async def list_matches(
     if match_type:
         query = query.filter(Match.match_type == match_type.value)
 
-    if user_id:
-        # Filter matches where user is host, opponent, or player
+    # If a specific user_id filter is provided, use it.
+    # Otherwise, if logged in, show only the current user's matches.
+    filter_user_id = user_id
+    if not filter_user_id and current_user:
+        filter_user_id = current_user.id
+
+    if filter_user_id:
+        # Filter matches where user is host, opponent, or a player
         user_match_ids = (
             db.query(PlayersInMatch.match_id)
-            .filter(PlayersInMatch.user_id == user_id)
+            .filter(PlayersInMatch.user_id == filter_user_id)
             .subquery()
         )
         query = query.filter(
             or_(
                 Match.id.in_(user_match_ids),
-                Match.host_user_id == user_id,
-                Match.opponent_captain_id == user_id,
+                Match.host_user_id == filter_user_id,
+                Match.opponent_captain_id == filter_user_id,
             )
         )
 

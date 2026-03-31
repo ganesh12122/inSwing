@@ -207,28 +207,41 @@ async def update_user_profile(
 
 @router.get("/search", response_model=List[UserProfileResponse])
 async def search_users(
+    q: Optional[str] = Query(
+        None,
+        min_length=1,
+        max_length=100,
+        description="Search by name, email, or phone",
+    ),
     name: Optional[str] = Query(None, min_length=1, max_length=100),
-    phone: Optional[str] = Query(None, min_length=7, max_length=15),
+    phone: Optional[str] = Query(None, min_length=3, max_length=15),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Search users by name or phone number."""
+    """Search users by name, email, or phone number."""
     query = db.query(User)
 
-    if name:
+    if q:
+        # Universal search: match name, email, or phone
+        query = query.filter(
+            or_(
+                User.full_name.ilike(f"%{q}%"),
+                User.email.ilike(f"%{q}%"),
+                User.phone_number.ilike(f"%{q}%"),
+            )
+        )
+    elif name:
         # Search by name (case-insensitive partial match)
         query = query.filter(User.full_name.ilike(f"%{name}%"))
-
-    if phone:
+    elif phone:
         # Search by phone (partial match)
         query = query.filter(User.phone_number.ilike(f"%{phone}%"))
-
-    if not name and not phone:
+    else:
         logger.warning("Empty search query", user_id=current_user.id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please provide either name or phone number to search",
+            detail="Please provide a search query (q, name, or phone)",
         )
 
     users = query.filter(User.is_active == True).limit(limit).all()

@@ -43,7 +43,8 @@ class ProfileScreen extends ConsumerWidget {
                   Text('Error: ${authState.error}'),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => ref.read(authProvider.notifier).reloadUserData(),
+                    onPressed: () =>
+                        ref.read(authProvider.notifier).reloadUserData(),
                     child: const Text('Retry'),
                   ),
                 ],
@@ -56,7 +57,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileContent(BuildContext context, AuthState state, ThemeData theme, WidgetRef ref) {
+  Widget _buildProfileContent(
+      BuildContext context, AuthState state, ThemeData theme, WidgetRef ref) {
     final user = state.user;
     final userProfile = state.userProfile;
 
@@ -78,7 +80,9 @@ class ProfileScreen extends ConsumerWidget {
                     radius: 50,
                     backgroundColor: theme.colorScheme.primary,
                     child: Text(
-                      user.fullName?.isNotEmpty == true ? user.fullName![0].toUpperCase() : '?',
+                      user.fullName?.isNotEmpty == true
+                          ? user.fullName![0].toUpperCase()
+                          : '?',
                       style: theme.textTheme.headlineLarge?.copyWith(
                         color: theme.colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,
@@ -97,7 +101,8 @@ class ProfileScreen extends ConsumerWidget {
                     Text(
                       userProfile.primaryRole.toUpperCase(),
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -112,9 +117,9 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Stats card
           if (userProfile != null) ...[
             Card(
@@ -157,10 +162,9 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            
             const SizedBox(height: 16),
           ],
-          
+
           // Actions card
           Card(
             child: Padding(
@@ -194,10 +198,12 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, ThemeData theme, {IconData? icon}) {
+  Widget _buildStatItem(String label, String value, ThemeData theme,
+      {IconData? icon}) {
     return Column(
       children: [
-        if (icon != null) Icon(icon, size: 24, color: theme.colorScheme.primary),
+        if (icon != null)
+          Icon(icon, size: 24, color: theme.colorScheme.primary),
         const SizedBox(height: 4),
         Text(
           value,

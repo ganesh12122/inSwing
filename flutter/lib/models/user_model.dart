@@ -41,7 +41,8 @@ class UserProfile with _$UserProfile {
     required DateTime updatedAt,
   }) = _UserProfile;
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) => _$UserProfileFromJson(json);
+  factory UserProfile.fromJson(Map<String, dynamic> json) =>
+      _$UserProfileFromJson(json);
 }
 
 @freezed
@@ -64,7 +65,8 @@ class PlayerStats with _$PlayerStats {
     String? firstFiveWicketDate,
   }) = _PlayerStats;
 
-  factory PlayerStats.fromJson(Map<String, dynamic> json) => _$PlayerStatsFromJson(json);
+  factory PlayerStats.fromJson(Map<String, dynamic> json) =>
+      _$PlayerStatsFromJson(json);
 }
 
 @freezed
@@ -84,7 +86,8 @@ class BattingStats with _$BattingStats {
     @Default('0') String notOuts,
   }) = _BattingStats;
 
-  factory BattingStats.fromJson(Map<String, dynamic> json) => _$BattingStatsFromJson(json);
+  factory BattingStats.fromJson(Map<String, dynamic> json) =>
+      _$BattingStatsFromJson(json);
 }
 
 @freezed
@@ -103,7 +106,8 @@ class BowlingStats with _$BowlingStats {
     @Default(0) int tenWicketHauls,
   }) = _BowlingStats;
 
-  factory BowlingStats.fromJson(Map<String, dynamic> json) => _$BowlingStatsFromJson(json);
+  factory BowlingStats.fromJson(Map<String, dynamic> json) =>
+      _$BowlingStatsFromJson(json);
 }
 
 @freezed
@@ -114,7 +118,8 @@ class FieldingStats with _$FieldingStats {
     @Default(0) int stumpings,
   }) = _FieldingStats;
 
-  factory FieldingStats.fromJson(Map<String, dynamic> json) => _$FieldingStatsFromJson(json);
+  factory FieldingStats.fromJson(Map<String, dynamic> json) =>
+      _$FieldingStatsFromJson(json);
 }
 
 @freezed
@@ -129,7 +134,8 @@ class MatchPerformance with _$MatchPerformance {
     FieldingPerformance? fieldingPerformance,
   }) = _MatchPerformance;
 
-  factory MatchPerformance.fromJson(Map<String, dynamic> json) => _$MatchPerformanceFromJson(json);
+  factory MatchPerformance.fromJson(Map<String, dynamic> json) =>
+      _$MatchPerformanceFromJson(json);
 }
 
 @freezed
@@ -143,7 +149,8 @@ class BattingPerformance with _$BattingPerformance {
     required String dismissal,
   }) = _BattingPerformance;
 
-  factory BattingPerformance.fromJson(Map<String, dynamic> json) => _$BattingPerformanceFromJson(json);
+  factory BattingPerformance.fromJson(Map<String, dynamic> json) =>
+      _$BattingPerformanceFromJson(json);
 }
 
 @freezed
@@ -156,7 +163,8 @@ class BowlingPerformance with _$BowlingPerformance {
     required String economy,
   }) = _BowlingPerformance;
 
-  factory BowlingPerformance.fromJson(Map<String, dynamic> json) => _$BowlingPerformanceFromJson(json);
+  factory BowlingPerformance.fromJson(Map<String, dynamic> json) =>
+      _$BowlingPerformanceFromJson(json);
 }
 
 @freezed
@@ -167,5 +175,6 @@ class FieldingPerformance with _$FieldingPerformance {
     @Default(0) int stumpings,
   }) = _FieldingPerformance;
 
-  factory FieldingPerformance.fromJson(Map<String, dynamic> json) => _$FieldingPerformanceFromJson(json);
+  factory FieldingPerformance.fromJson(Map<String, dynamic> json) =>
+      _$FieldingPerformanceFromJson(json);
 }

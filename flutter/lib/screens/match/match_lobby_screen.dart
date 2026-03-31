@@ -1148,7 +1148,9 @@ class _InviteOpponentSectionState
                     return ListTile(
                       selected: isSelected,
                       leading: CircleAvatar(
-                          child: Text((user.fullName ?? user.email ?? '??').substring(0, 2).toUpperCase())),
+                          child: Text((user.fullName ?? user.email ?? '??')
+                              .substring(0, 2)
+                              .toUpperCase())),
                       title: Text(user.fullName ?? user.email ?? 'Unknown'),
                       subtitle: Text(user.email ?? user.phoneNumber ?? ''),
                       trailing: isSelected

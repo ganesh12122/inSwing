@@ -58,7 +58,22 @@ class Match with _$Match {
     double? teamBOvers,
   }) = _Match;
 
-  factory Match.fromJson(Map<String, dynamic> json) => _$MatchFromJson(json);
+  factory Match.fromJson(Map<String, dynamic> json) {
+    // Fix LinkedMap issue on web: ensure Map fields are properly cast
+    final fixedJson = Map<String, dynamic>.from(json);
+    if (fixedJson['rules'] != null) {
+      fixedJson['rules'] = Map<String, dynamic>.from(fixedJson['rules'] as Map);
+    }
+    if (fixedJson['proposed_rules'] != null) {
+      fixedJson['proposed_rules'] =
+          Map<String, dynamic>.from(fixedJson['proposed_rules'] as Map);
+    }
+    if (fixedJson['result'] != null) {
+      fixedJson['result'] =
+          Map<String, dynamic>.from(fixedJson['result'] as Map);
+    }
+    return _$MatchFromJson(fixedJson);
+  }
 }
 
 @freezed

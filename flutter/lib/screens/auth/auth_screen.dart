@@ -38,31 +38,53 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _isLoading = true);
 
     try {
-      bool success;
-
       if (_isRegister) {
-        success = await ref.read(authProvider.notifier).register(
+        // Register — don't auto-login, switch to login form
+        final success = await ref.read(authProvider.notifier).register(
               fullName: _nameController.text.trim(),
               email: _emailController.text.trim(),
               password: _passwordController.text,
             );
+
+        if (success && mounted) {
+          // Clear password, keep email, switch to login mode
+          _passwordController.clear();
+          _nameController.clear();
+          setState(() => _isRegister = false);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Registration successful! Please login.'),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        } else if (mounted) {
+          final error = ref.read(authProvider).error;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error ?? 'Registration failed. Please try again.'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
       } else {
-        success = await ref.read(authProvider.notifier).login(
+        // Login — navigate to home on success
+        final success = await ref.read(authProvider.notifier).login(
               email: _emailController.text.trim(),
               password: _passwordController.text,
             );
-      }
 
-      if (success && mounted) {
-        context.go('/home');
-      } else if (mounted) {
-        final error = ref.read(authProvider).error;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error ?? 'Authentication failed. Please try again.'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        if (success && mounted) {
+          context.go('/home');
+        } else if (mounted) {
+          final error = ref.read(authProvider).error;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error ?? 'Login failed. Please try again.'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
