@@ -6,6 +6,109 @@ part of 'match_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_$MatchImpl _$$MatchImplFromJson(Map<String, dynamic> json) => _$MatchImpl(
+      id: json['id'] as String,
+      hostUserId: json['host_user_id'] as String,
+      opponentCaptainId: json['opponent_captain_id'] as String?,
+      scorerUserId: json['scorer_user_id'] as String?,
+      matchType: json['match_type'] as String,
+      teamAName: json['team_a_name'] as String,
+      teamBName: json['team_b_name'] as String?,
+      venue: json['venue'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      scheduledAt: json['scheduled_at'] == null
+          ? null
+          : DateTime.parse(json['scheduled_at'] as String),
+      status: json['status'] as String,
+      invitationMessage: json['invitation_message'] as String?,
+      invitedAt: json['invited_at'] == null
+          ? null
+          : DateTime.parse(json['invited_at'] as String),
+      acceptedAt: json['accepted_at'] == null
+          ? null
+          : DateTime.parse(json['accepted_at'] as String),
+      declinedAt: json['declined_at'] == null
+          ? null
+          : DateTime.parse(json['declined_at'] as String),
+      rules: _mapFromDynamic(json['rules']),
+      proposedRules: _nullableMapFromDynamic(json['proposed_rules']),
+      rulesProposedBy: json['rules_proposed_by'] as String?,
+      hostRulesApproved: json['host_rules_approved'] as bool? ?? false,
+      opponentRulesApproved: json['opponent_rules_approved'] as bool? ?? false,
+      hostTeamReady: json['host_team_ready'] as bool? ?? false,
+      opponentTeamReady: json['opponent_team_ready'] as bool? ?? false,
+      minPlayersPerTeam: (json['min_players_per_team'] as num?)?.toInt() ?? 2,
+      result: _nullableMapFromDynamic(json['result']),
+      tossWinner: json['toss_winner'] as String?,
+      tossDecision: json['toss_decision'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      startedAt: json['started_at'] == null
+          ? null
+          : DateTime.parse(json['started_at'] as String),
+      finishedAt: json['finished_at'] == null
+          ? null
+          : DateTime.parse(json['finished_at'] as String),
+      isDualCaptain: json['is_dual_captain'] as bool? ?? false,
+      bothTeamsReady: json['both_teams_ready'] as bool? ?? false,
+      rulesAgreed: json['rules_agreed'] as bool? ?? false,
+      currentInningsId: json['current_innings_id'] as String?,
+      battingTeam: json['batting_team'] as String?,
+      teamARuns: (json['team_a_runs'] as num?)?.toInt(),
+      teamAWickets: (json['team_a_wickets'] as num?)?.toInt(),
+      teamAOvers: (json['team_a_overs'] as num?)?.toDouble(),
+      teamBRuns: (json['team_b_runs'] as num?)?.toInt(),
+      teamBWickets: (json['team_b_wickets'] as num?)?.toInt(),
+      teamBOvers: (json['team_b_overs'] as num?)?.toDouble(),
+    );
+
+Map<String, dynamic> _$$MatchImplToJson(_$MatchImpl instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'host_user_id': instance.hostUserId,
+      'opponent_captain_id': instance.opponentCaptainId,
+      'scorer_user_id': instance.scorerUserId,
+      'match_type': instance.matchType,
+      'team_a_name': instance.teamAName,
+      'team_b_name': instance.teamBName,
+      'venue': instance.venue,
+      'latitude': instance.latitude,
+      'longitude': instance.longitude,
+      'scheduled_at': instance.scheduledAt?.toIso8601String(),
+      'status': instance.status,
+      'invitation_message': instance.invitationMessage,
+      'invited_at': instance.invitedAt?.toIso8601String(),
+      'accepted_at': instance.acceptedAt?.toIso8601String(),
+      'declined_at': instance.declinedAt?.toIso8601String(),
+      'rules': instance.rules,
+      'proposed_rules': instance.proposedRules,
+      'rules_proposed_by': instance.rulesProposedBy,
+      'host_rules_approved': instance.hostRulesApproved,
+      'opponent_rules_approved': instance.opponentRulesApproved,
+      'host_team_ready': instance.hostTeamReady,
+      'opponent_team_ready': instance.opponentTeamReady,
+      'min_players_per_team': instance.minPlayersPerTeam,
+      'result': instance.result,
+      'toss_winner': instance.tossWinner,
+      'toss_decision': instance.tossDecision,
+      'created_at': instance.createdAt.toIso8601String(),
+      'updated_at': instance.updatedAt.toIso8601String(),
+      'started_at': instance.startedAt?.toIso8601String(),
+      'finished_at': instance.finishedAt?.toIso8601String(),
+      'is_dual_captain': instance.isDualCaptain,
+      'both_teams_ready': instance.bothTeamsReady,
+      'rules_agreed': instance.rulesAgreed,
+      'current_innings_id': instance.currentInningsId,
+      'batting_team': instance.battingTeam,
+      'team_a_runs': instance.teamARuns,
+      'team_a_wickets': instance.teamAWickets,
+      'team_a_overs': instance.teamAOvers,
+      'team_b_runs': instance.teamBRuns,
+      'team_b_wickets': instance.teamBWickets,
+      'team_b_overs': instance.teamBOvers,
+    };
+
 _$MatchRulesImpl _$$MatchRulesImplFromJson(Map<String, dynamic> json) =>
     _$MatchRulesImpl(
       oversLimit: (json['overs_limit'] as num?)?.toInt() ?? 6,

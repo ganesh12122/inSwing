@@ -3,6 +3,16 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'match_model.freezed.dart';
 part 'match_model.g.dart';
 
+// Helper functions for LinkedMap fix on web — ensures Map<dynamic, dynamic>
+// from dart:convert is properly cast to Map<String, dynamic>
+Map<String, dynamic> _mapFromDynamic(dynamic value) =>
+    Map<String, dynamic>.from(value as Map);
+
+Map<String, dynamic>? _nullableMapFromDynamic(dynamic value) =>
+    value != null ? Map<String, dynamic>.from(value as Map) : null;
+
+// ignore_for_file: invalid_annotation_target
+
 @freezed
 class Match with _$Match {
   const factory Match({
@@ -24,7 +34,8 @@ class Match with _$Match {
     DateTime? acceptedAt,
     DateTime? declinedAt,
     // Rules
-    required Map<String, dynamic> rules,
+    @JsonKey(fromJson: _mapFromDynamic) required Map<String, dynamic> rules,
+    @JsonKey(fromJson: _nullableMapFromDynamic)
     Map<String, dynamic>? proposedRules,
     String? rulesProposedBy,
     @Default(false) bool hostRulesApproved,
@@ -34,7 +45,7 @@ class Match with _$Match {
     @Default(false) bool opponentTeamReady,
     @Default(2) int minPlayersPerTeam,
     // Result
-    Map<String, dynamic>? result,
+    @JsonKey(fromJson: _nullableMapFromDynamic) Map<String, dynamic>? result,
     // Toss
     String? tossWinner,
     String? tossDecision,
@@ -58,22 +69,7 @@ class Match with _$Match {
     double? teamBOvers,
   }) = _Match;
 
-  factory Match.fromJson(Map<String, dynamic> json) {
-    // Fix LinkedMap issue on web: ensure Map fields are properly cast
-    final fixedJson = Map<String, dynamic>.from(json);
-    if (fixedJson['rules'] != null) {
-      fixedJson['rules'] = Map<String, dynamic>.from(fixedJson['rules'] as Map);
-    }
-    if (fixedJson['proposed_rules'] != null) {
-      fixedJson['proposed_rules'] =
-          Map<String, dynamic>.from(fixedJson['proposed_rules'] as Map);
-    }
-    if (fixedJson['result'] != null) {
-      fixedJson['result'] =
-          Map<String, dynamic>.from(fixedJson['result'] as Map);
-    }
-    return _$MatchFromJson(fixedJson);
-  }
+  factory Match.fromJson(Map<String, dynamic> json) => _$MatchFromJson(json);
 }
 
 @freezed

@@ -14,6 +14,10 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
+Match _$MatchFromJson(Map<String, dynamic> json) {
+  return _Match.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Match {
   String get id => throw _privateConstructorUsedError;
@@ -32,7 +36,9 @@ mixin _$Match {
   DateTime? get invitedAt => throw _privateConstructorUsedError;
   DateTime? get acceptedAt => throw _privateConstructorUsedError;
   DateTime? get declinedAt => throw _privateConstructorUsedError; // Rules
+  @JsonKey(fromJson: _mapFromDynamic)
   Map<String, dynamic> get rules => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _nullableMapFromDynamic)
   Map<String, dynamic>? get proposedRules => throw _privateConstructorUsedError;
   String? get rulesProposedBy => throw _privateConstructorUsedError;
   bool get hostRulesApproved => throw _privateConstructorUsedError;
@@ -41,6 +47,7 @@ mixin _$Match {
   bool get hostTeamReady => throw _privateConstructorUsedError;
   bool get opponentTeamReady => throw _privateConstructorUsedError;
   int get minPlayersPerTeam => throw _privateConstructorUsedError; // Result
+  @JsonKey(fromJson: _nullableMapFromDynamic)
   Map<String, dynamic>? get result =>
       throw _privateConstructorUsedError; // Toss
   String? get tossWinner => throw _privateConstructorUsedError;
@@ -62,6 +69,9 @@ mixin _$Match {
   int? get teamBRuns => throw _privateConstructorUsedError;
   int? get teamBWickets => throw _privateConstructorUsedError;
   double? get teamBOvers => throw _privateConstructorUsedError;
+
+  /// Serializes this Match to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Match
   /// with the given fields replaced by the non-null parameter values.
@@ -91,7 +101,8 @@ abstract class $MatchCopyWith<$Res> {
       DateTime? invitedAt,
       DateTime? acceptedAt,
       DateTime? declinedAt,
-      Map<String, dynamic> rules,
+      @JsonKey(fromJson: _mapFromDynamic) Map<String, dynamic> rules,
+      @JsonKey(fromJson: _nullableMapFromDynamic)
       Map<String, dynamic>? proposedRules,
       String? rulesProposedBy,
       bool hostRulesApproved,
@@ -99,7 +110,7 @@ abstract class $MatchCopyWith<$Res> {
       bool hostTeamReady,
       bool opponentTeamReady,
       int minPlayersPerTeam,
-      Map<String, dynamic>? result,
+      @JsonKey(fromJson: _nullableMapFromDynamic) Map<String, dynamic>? result,
       String? tossWinner,
       String? tossDecision,
       DateTime createdAt,
@@ -374,7 +385,8 @@ abstract class _$$MatchImplCopyWith<$Res> implements $MatchCopyWith<$Res> {
       DateTime? invitedAt,
       DateTime? acceptedAt,
       DateTime? declinedAt,
-      Map<String, dynamic> rules,
+      @JsonKey(fromJson: _mapFromDynamic) Map<String, dynamic> rules,
+      @JsonKey(fromJson: _nullableMapFromDynamic)
       Map<String, dynamic>? proposedRules,
       String? rulesProposedBy,
       bool hostRulesApproved,
@@ -382,7 +394,7 @@ abstract class _$$MatchImplCopyWith<$Res> implements $MatchCopyWith<$Res> {
       bool hostTeamReady,
       bool opponentTeamReady,
       int minPlayersPerTeam,
-      Map<String, dynamic>? result,
+      @JsonKey(fromJson: _nullableMapFromDynamic) Map<String, dynamic>? result,
       String? tossWinner,
       String? tossDecision,
       DateTime createdAt,
@@ -632,7 +644,7 @@ class __$$MatchImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$MatchImpl implements _Match {
   const _$MatchImpl(
       {required this.id,
@@ -651,7 +663,9 @@ class _$MatchImpl implements _Match {
       this.invitedAt,
       this.acceptedAt,
       this.declinedAt,
+      @JsonKey(fromJson: _mapFromDynamic)
       required final Map<String, dynamic> rules,
+      @JsonKey(fromJson: _nullableMapFromDynamic)
       final Map<String, dynamic>? proposedRules,
       this.rulesProposedBy,
       this.hostRulesApproved = false,
@@ -659,6 +673,7 @@ class _$MatchImpl implements _Match {
       this.hostTeamReady = false,
       this.opponentTeamReady = false,
       this.minPlayersPerTeam = 2,
+      @JsonKey(fromJson: _nullableMapFromDynamic)
       final Map<String, dynamic>? result,
       this.tossWinner,
       this.tossDecision,
@@ -680,6 +695,9 @@ class _$MatchImpl implements _Match {
       : _rules = rules,
         _proposedRules = proposedRules,
         _result = result;
+
+  factory _$MatchImpl.fromJson(Map<String, dynamic> json) =>
+      _$$MatchImplFromJson(json);
 
   @override
   final String id;
@@ -718,6 +736,7 @@ class _$MatchImpl implements _Match {
   final Map<String, dynamic> _rules;
 // Rules
   @override
+  @JsonKey(fromJson: _mapFromDynamic)
   Map<String, dynamic> get rules {
     if (_rules is EqualUnmodifiableMapView) return _rules;
     // ignore: implicit_dynamic_type
@@ -726,6 +745,7 @@ class _$MatchImpl implements _Match {
 
   final Map<String, dynamic>? _proposedRules;
   @override
+  @JsonKey(fromJson: _nullableMapFromDynamic)
   Map<String, dynamic>? get proposedRules {
     final value = _proposedRules;
     if (value == null) return null;
@@ -756,6 +776,7 @@ class _$MatchImpl implements _Match {
   final Map<String, dynamic>? _result;
 // Result
   @override
+  @JsonKey(fromJson: _nullableMapFromDynamic)
   Map<String, dynamic>? get result {
     final value = _result;
     if (value == null) return null;
@@ -897,6 +918,7 @@ class _$MatchImpl implements _Match {
                 other.teamBOvers == teamBOvers));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hashAll([
         runtimeType,
@@ -951,6 +973,13 @@ class _$MatchImpl implements _Match {
   @pragma('vm:prefer-inline')
   _$$MatchImplCopyWith<_$MatchImpl> get copyWith =>
       __$$MatchImplCopyWithImpl<_$MatchImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$MatchImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _Match implements Match {
@@ -971,7 +1000,9 @@ abstract class _Match implements Match {
       final DateTime? invitedAt,
       final DateTime? acceptedAt,
       final DateTime? declinedAt,
+      @JsonKey(fromJson: _mapFromDynamic)
       required final Map<String, dynamic> rules,
+      @JsonKey(fromJson: _nullableMapFromDynamic)
       final Map<String, dynamic>? proposedRules,
       final String? rulesProposedBy,
       final bool hostRulesApproved,
@@ -979,6 +1010,7 @@ abstract class _Match implements Match {
       final bool hostTeamReady,
       final bool opponentTeamReady,
       final int minPlayersPerTeam,
+      @JsonKey(fromJson: _nullableMapFromDynamic)
       final Map<String, dynamic>? result,
       final String? tossWinner,
       final String? tossDecision,
@@ -997,6 +1029,8 @@ abstract class _Match implements Match {
       final int? teamBRuns,
       final int? teamBWickets,
       final double? teamBOvers}) = _$MatchImpl;
+
+  factory _Match.fromJson(Map<String, dynamic> json) = _$MatchImpl.fromJson;
 
   @override
   String get id;
@@ -1031,8 +1065,10 @@ abstract class _Match implements Match {
   @override
   DateTime? get declinedAt; // Rules
   @override
+  @JsonKey(fromJson: _mapFromDynamic)
   Map<String, dynamic> get rules;
   @override
+  @JsonKey(fromJson: _nullableMapFromDynamic)
   Map<String, dynamic>? get proposedRules;
   @override
   String? get rulesProposedBy;
@@ -1047,6 +1083,7 @@ abstract class _Match implements Match {
   @override
   int get minPlayersPerTeam; // Result
   @override
+  @JsonKey(fromJson: _nullableMapFromDynamic)
   Map<String, dynamic>? get result; // Toss
   @override
   String? get tossWinner;
