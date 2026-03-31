@@ -1,10 +1,12 @@
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
     """Schema for user registration."""
+
     full_name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=128)
@@ -13,12 +15,14 @@ class RegisterRequest(BaseModel):
 
 class EmailLoginRequest(BaseModel):
     """Schema for email + password login."""
+
     email: EmailStr
     password: str = Field(..., min_length=1)
 
 
 class TokenResponse(BaseModel):
     """Schema for JWT token response."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -27,11 +31,13 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     """Schema for refresh token request."""
+
     refresh_token: str
 
 
 class UserLoginResponse(BaseModel):
     """Schema for user login response."""
+
     user: dict  # User data
     tokens: TokenResponse
     message: str = "Login successful"
@@ -39,4 +45,5 @@ class UserLoginResponse(BaseModel):
 
 class LogoutResponse(BaseModel):
     """Schema for logout response."""
+
     message: str = "Logout successful"

@@ -1148,9 +1148,9 @@ class _InviteOpponentSectionState
                     return ListTile(
                       selected: isSelected,
                       leading: CircleAvatar(
-                          child: Text(user.phoneNumber.substring(0, 2))),
-                      title: Text(user.name ?? user.phoneNumber),
-                      subtitle: Text(user.phoneNumber),
+                          child: Text((user.fullName ?? user.email ?? '??').substring(0, 2).toUpperCase())),
+                      title: Text(user.fullName ?? user.email ?? 'Unknown'),
+                      subtitle: Text(user.email ?? user.phoneNumber ?? ''),
                       trailing: isSelected
                           ? const Icon(Icons.check_circle, color: Colors.green)
                           : null,

@@ -7,11 +7,14 @@ part 'user_model.g.dart';
 class User with _$User {
   const factory User({
     required String id,
-    required String phoneNumber,
-    String? name,
+    String? phoneNumber,
+    String? fullName,
     String? email,
     String? avatarUrl,
+    String? bio,
     @Default('player') String role,
+    @Default(true) bool isActive,
+    @Default(false) bool isVerified,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _User;

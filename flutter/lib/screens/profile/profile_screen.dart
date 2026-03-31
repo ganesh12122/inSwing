@@ -78,7 +78,7 @@ class ProfileScreen extends ConsumerWidget {
                     radius: 50,
                     backgroundColor: theme.colorScheme.primary,
                     child: Text(
-                      user.name?.isNotEmpty == true ? user.name![0].toUpperCase() : '?',
+                      user.fullName?.isNotEmpty == true ? user.fullName![0].toUpperCase() : '?',
                       style: theme.textTheme.headlineLarge?.copyWith(
                         color: theme.colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,
@@ -87,7 +87,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    user.name ?? 'Unknown User',
+                    user.fullName ?? 'Unknown User',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -103,7 +103,7 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                   const SizedBox(height: 8),
                   Text(
-                    user.phoneNumber,
+                    user.email ?? user.phoneNumber ?? '',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),

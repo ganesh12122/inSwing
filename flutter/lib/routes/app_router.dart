@@ -47,7 +47,7 @@ GoRouter goRouter(Ref ref) {
       final container = ProviderScope.containerOf(context);
       final isAuthenticated = container.read(authProvider).isAuthenticated;
       final location = state.matchedLocation;
-      final isAuthRoute = location == '/login' || location == '/verify-otp';
+      final isAuthRoute = location == '/login';
 
       if (!isAuthenticated && !isAuthRoute) return '/login';
       if (isAuthenticated && isAuthRoute) return '/home';
@@ -58,20 +58,7 @@ GoRouter goRouter(Ref ref) {
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const AuthScreen(isLoginMode: true),
-      ),
-      GoRoute(
-        path: '/verify-otp',
-        name: 'verify-otp',
-        builder: (context, state) {
-          final data = state.extra as Map<String, dynamic>? ?? {};
-          return AuthScreen(
-            isLoginMode: false,
-            phoneNumber: data['phone_number'] as String? ?? '',
-            sessionId: data['session_id'] as String? ?? '',
-            devOtpCode: data['otp_code'] as String?,
-          );
-        },
+        builder: (context, state) => const AuthScreen(),
       ),
 
       // Main app routes

@@ -21,11 +21,14 @@ User _$UserFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$User {
   String get id => throw _privateConstructorUsedError;
-  String get phoneNumber => throw _privateConstructorUsedError;
-  String? get name => throw _privateConstructorUsedError;
+  String? get phoneNumber => throw _privateConstructorUsedError;
+  String? get fullName => throw _privateConstructorUsedError;
   String? get email => throw _privateConstructorUsedError;
   String? get avatarUrl => throw _privateConstructorUsedError;
+  String? get bio => throw _privateConstructorUsedError;
   String get role => throw _privateConstructorUsedError;
+  bool get isActive => throw _privateConstructorUsedError;
+  bool get isVerified => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
 
@@ -45,11 +48,14 @@ abstract class $UserCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
-      String phoneNumber,
-      String? name,
+      String? phoneNumber,
+      String? fullName,
       String? email,
       String? avatarUrl,
+      String? bio,
       String role,
+      bool isActive,
+      bool isVerified,
       DateTime createdAt,
       DateTime updatedAt});
 }
@@ -70,11 +76,14 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
   @override
   $Res call({
     Object? id = null,
-    Object? phoneNumber = null,
-    Object? name = freezed,
+    Object? phoneNumber = freezed,
+    Object? fullName = freezed,
     Object? email = freezed,
     Object? avatarUrl = freezed,
+    Object? bio = freezed,
     Object? role = null,
+    Object? isActive = null,
+    Object? isVerified = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -83,13 +92,13 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      phoneNumber: null == phoneNumber
+      phoneNumber: freezed == phoneNumber
           ? _value.phoneNumber
           : phoneNumber // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: freezed == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
+              as String?,
+      fullName: freezed == fullName
+          ? _value.fullName
+          : fullName // ignore: cast_nullable_to_non_nullable
               as String?,
       email: freezed == email
           ? _value.email
@@ -99,10 +108,22 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
           ? _value.avatarUrl
           : avatarUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      bio: freezed == bio
+          ? _value.bio
+          : bio // ignore: cast_nullable_to_non_nullable
+              as String?,
       role: null == role
           ? _value.role
           : role // ignore: cast_nullable_to_non_nullable
               as String,
+      isActive: null == isActive
+          ? _value.isActive
+          : isActive // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isVerified: null == isVerified
+          ? _value.isVerified
+          : isVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -124,11 +145,14 @@ abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
-      String phoneNumber,
-      String? name,
+      String? phoneNumber,
+      String? fullName,
       String? email,
       String? avatarUrl,
+      String? bio,
       String role,
+      bool isActive,
+      bool isVerified,
       DateTime createdAt,
       DateTime updatedAt});
 }
@@ -146,11 +170,14 @@ class __$$UserImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
-    Object? phoneNumber = null,
-    Object? name = freezed,
+    Object? phoneNumber = freezed,
+    Object? fullName = freezed,
     Object? email = freezed,
     Object? avatarUrl = freezed,
+    Object? bio = freezed,
     Object? role = null,
+    Object? isActive = null,
+    Object? isVerified = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -159,13 +186,13 @@ class __$$UserImplCopyWithImpl<$Res>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      phoneNumber: null == phoneNumber
+      phoneNumber: freezed == phoneNumber
           ? _value.phoneNumber
           : phoneNumber // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: freezed == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
+              as String?,
+      fullName: freezed == fullName
+          ? _value.fullName
+          : fullName // ignore: cast_nullable_to_non_nullable
               as String?,
       email: freezed == email
           ? _value.email
@@ -175,10 +202,22 @@ class __$$UserImplCopyWithImpl<$Res>
           ? _value.avatarUrl
           : avatarUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      bio: freezed == bio
+          ? _value.bio
+          : bio // ignore: cast_nullable_to_non_nullable
+              as String?,
       role: null == role
           ? _value.role
           : role // ignore: cast_nullable_to_non_nullable
               as String,
+      isActive: null == isActive
+          ? _value.isActive
+          : isActive // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isVerified: null == isVerified
+          ? _value.isVerified
+          : isVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -196,11 +235,14 @@ class __$$UserImplCopyWithImpl<$Res>
 class _$UserImpl implements _User {
   const _$UserImpl(
       {required this.id,
-      required this.phoneNumber,
-      this.name,
+      this.phoneNumber,
+      this.fullName,
       this.email,
       this.avatarUrl,
+      this.bio,
       this.role = 'player',
+      this.isActive = true,
+      this.isVerified = false,
       required this.createdAt,
       required this.updatedAt});
 
@@ -210,16 +252,24 @@ class _$UserImpl implements _User {
   @override
   final String id;
   @override
-  final String phoneNumber;
+  final String? phoneNumber;
   @override
-  final String? name;
+  final String? fullName;
   @override
   final String? email;
   @override
   final String? avatarUrl;
   @override
+  final String? bio;
+  @override
   @JsonKey()
   final String role;
+  @override
+  @JsonKey()
+  final bool isActive;
+  @override
+  @JsonKey()
+  final bool isVerified;
   @override
   final DateTime createdAt;
   @override
@@ -227,7 +277,7 @@ class _$UserImpl implements _User {
 
   @override
   String toString() {
-    return 'User(id: $id, phoneNumber: $phoneNumber, name: $name, email: $email, avatarUrl: $avatarUrl, role: $role, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'User(id: $id, phoneNumber: $phoneNumber, fullName: $fullName, email: $email, avatarUrl: $avatarUrl, bio: $bio, role: $role, isActive: $isActive, isVerified: $isVerified, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -238,11 +288,17 @@ class _$UserImpl implements _User {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.phoneNumber, phoneNumber) ||
                 other.phoneNumber == phoneNumber) &&
-            (identical(other.name, name) || other.name == name) &&
+            (identical(other.fullName, fullName) ||
+                other.fullName == fullName) &&
             (identical(other.email, email) || other.email == email) &&
             (identical(other.avatarUrl, avatarUrl) ||
                 other.avatarUrl == avatarUrl) &&
+            (identical(other.bio, bio) || other.bio == bio) &&
             (identical(other.role, role) || other.role == role) &&
+            (identical(other.isActive, isActive) ||
+                other.isActive == isActive) &&
+            (identical(other.isVerified, isVerified) ||
+                other.isVerified == isVerified) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -251,8 +307,8 @@ class _$UserImpl implements _User {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, phoneNumber, name, email,
-      avatarUrl, role, createdAt, updatedAt);
+  int get hashCode => Object.hash(runtimeType, id, phoneNumber, fullName, email,
+      avatarUrl, bio, role, isActive, isVerified, createdAt, updatedAt);
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -273,11 +329,14 @@ class _$UserImpl implements _User {
 abstract class _User implements User {
   const factory _User(
       {required final String id,
-      required final String phoneNumber,
-      final String? name,
+      final String? phoneNumber,
+      final String? fullName,
       final String? email,
       final String? avatarUrl,
+      final String? bio,
       final String role,
+      final bool isActive,
+      final bool isVerified,
       required final DateTime createdAt,
       required final DateTime updatedAt}) = _$UserImpl;
 
@@ -286,15 +345,21 @@ abstract class _User implements User {
   @override
   String get id;
   @override
-  String get phoneNumber;
+  String? get phoneNumber;
   @override
-  String? get name;
+  String? get fullName;
   @override
   String? get email;
   @override
   String? get avatarUrl;
   @override
+  String? get bio;
+  @override
   String get role;
+  @override
+  bool get isActive;
+  @override
+  bool get isVerified;
   @override
   DateTime get createdAt;
   @override
