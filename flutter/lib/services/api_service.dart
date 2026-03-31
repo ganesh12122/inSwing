@@ -78,24 +78,34 @@ class ApiService {
     return response.data;
   }
 
-  Future<bool> requestOtp(String phoneNumber) async {
+  /// Request OTP for the given phone number.
+  /// Returns a Map with session_id, message, and optionally otp_code (dev mode).
+  Future<Map<String, dynamic>> requestOtp(String phoneNumber) async {
     try {
+      // Auto-prefix +91 for Indian numbers (raw 10 digits)
+      String formattedPhone = phoneNumber;
+      if (phoneNumber.length == 10 && !phoneNumber.startsWith('+')) {
+        formattedPhone = '+91$phoneNumber';
+      }
+      
       final response = await _dio.post('/auth/request-otp', data: {
-        'phone_number': phoneNumber,
+        'phone_number': formattedPhone,
       });
-      return response.statusCode == 200;
+      return response.data;
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
+  /// Verify OTP using session_id (not phone number).
+  /// Returns the full login response with nested tokens.
   Future<Map<String, dynamic>> verifyOtpAndLogin(
-    String phoneNumber,
+    String sessionId,
     String otp,
   ) async {
     try {
       final response = await _dio.post('/auth/verify-otp', data: {
-        'phone_number': phoneNumber,
+        'session_id': sessionId,
         'otp_code': otp,
       });
       return response.data;

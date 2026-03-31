@@ -32,11 +32,10 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 
-@router.post("/login", response_model=OTPResponse)
-async def login(otp_request: OTPCreate, db: Session = Depends(get_db)):
+async def _handle_login(otp_request: OTPCreate, db: Session):
     """
-    Initiate login by sending OTP to phone number.
-    Creates or updates user if phone number is valid.
+    Core login logic — sends OTP to phone number.
+    Creates user if phone number is new.
     """
     phone = format_phone_number(otp_request.phone_number)
 
@@ -92,6 +91,7 @@ async def login(otp_request: OTPCreate, db: Session = Depends(get_db)):
                 (existing_otp.expires_at - datetime.utcnow()).total_seconds()
             ),
             attempts_remaining=settings.OTP_MAX_ATTEMPTS - existing_otp.attempts,
+            otp_code=existing_otp.otp_code if settings.DEBUG else None,
         )
 
     # Generate new OTP
@@ -105,8 +105,8 @@ async def login(otp_request: OTPCreate, db: Session = Depends(get_db)):
     db.add(otp_session)
     db.commit()
 
-    # In a real implementation, you would send the OTP via SMS here
-    # For now, we'll log it for development
+    # In production, send OTP via SMS here.
+    # In DEBUG mode, OTP is returned in the response for convenience.
     logger.info("OTP generated", phone=phone, otp_code=otp_code, expires_at=expires_at)
 
     return OTPResponse(
@@ -114,7 +114,20 @@ async def login(otp_request: OTPCreate, db: Session = Depends(get_db)):
         message="OTP sent to your phone",
         expires_in=int((expires_at - datetime.utcnow()).total_seconds()),
         attempts_remaining=settings.OTP_MAX_ATTEMPTS,
+        otp_code=otp_code if settings.DEBUG else None,
     )
+
+
+@router.post("/login", response_model=OTPResponse)
+async def login(otp_request: OTPCreate, db: Session = Depends(get_db)):
+    """Initiate login by sending OTP to phone number."""
+    return await _handle_login(otp_request, db)
+
+
+@router.post("/request-otp", response_model=OTPResponse)
+async def request_otp(otp_request: OTPCreate, db: Session = Depends(get_db)):
+    """Alias for /login — Flutter calls this route."""
+    return await _handle_login(otp_request, db)
 
 
 @router.post("/verify-otp", response_model=UserLoginResponse)

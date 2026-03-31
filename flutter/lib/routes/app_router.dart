@@ -43,8 +43,13 @@ GoRouter goRouter(Ref ref) {
         path: '/verify-otp',
         name: 'verify-otp',
         builder: (context, state) {
-          final phoneNumber = state.extra as String? ?? '';
-          return AuthScreen(isLoginMode: false, phoneNumber: phoneNumber);
+          final data = state.extra as Map<String, dynamic>? ?? {};
+          return AuthScreen(
+            isLoginMode: false,
+            phoneNumber: data['phone_number'] as String? ?? '',
+            sessionId: data['session_id'] as String? ?? '',
+            devOtpCode: data['otp_code'] as String?,
+          );
         },
       ),
 

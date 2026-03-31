@@ -11,11 +11,15 @@ import 'package:inswing/widgets/common/app_text_field.dart';
 class AuthScreen extends ConsumerStatefulWidget {
   final bool isLoginMode;
   final String? phoneNumber;
+  final String? sessionId;
+  final String? devOtpCode;  // Auto-filled in debug mode
 
   const AuthScreen({
     super.key,
     required this.isLoginMode,
     this.phoneNumber,
+    this.sessionId,
+    this.devOtpCode,
   });
 
   @override
@@ -34,6 +38,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (widget.phoneNumber != null) {
       _phoneController.text = widget.phoneNumber!;
     }
+    // Auto-fill OTP in debug/dev mode
+    if (widget.devOtpCode != null) {
+      _otpController.text = widget.devOtpCode!;
+    }
   }
 
   @override
@@ -51,12 +59,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     try {
       final phoneNumber = _phoneController.text.trim();
       
-      // Request OTP
-      final success = await ref.read(authProvider.notifier).requestOtp(phoneNumber);
+      // Request OTP — returns { session_id, message, otp_code? }
+      final response = await ref.read(authProvider.notifier).requestOtp(phoneNumber);
       
-      if (success && mounted) {
-        // Navigate to OTP verification
-        context.push('/verify-otp', extra: phoneNumber);
+      if (response != null && mounted) {
+        // Navigate to OTP screen with session_id and optional dev OTP
+        context.push('/verify-otp', extra: {
+          'phone_number': phoneNumber,
+          'session_id': response['session_id'],
+          'otp_code': response['otp_code'],  // null in production
+        });
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -87,12 +99,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final phoneNumber = widget.phoneNumber!;
+      final sessionId = widget.sessionId!;
       final otp = _otpController.text.trim();
       
-      // Verify OTP and login
+      // Verify OTP using session_id (not phone number)
       final success = await ref.read(authProvider.notifier).verifyOtpAndLogin(
-        phoneNumber,
+        sessionId,
         otp,
       );
       

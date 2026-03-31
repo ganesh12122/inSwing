@@ -55,48 +55,48 @@ class Auth extends _$Auth {
     }
   }
 
-  /// Request OTP for phone number
-  Future<bool> requestOtp(String phoneNumber) async {
+  /// Request OTP for phone number.
+  /// Returns a Map with session_id and optionally otp_code (dev mode).
+  Future<Map<String, dynamic>?> requestOtp(String phoneNumber) async {
     state = state.copyWith(isLoading: true, error: null);
     
     try {
-      final success = await _apiService.requestOtp(phoneNumber);
+      final response = await _apiService.requestOtp(phoneNumber);
       state = state.copyWith(isLoading: false);
-      return success;
+      return response;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
       );
-      return false;
+      return null;
     }
   }
 
-  /// Verify OTP and login
-  Future<bool> verifyOtpAndLogin(String phoneNumber, String otp) async {
+  /// Verify OTP and login using session_id
+  Future<bool> verifyOtpAndLogin(String sessionId, String otp) async {
     state = state.copyWith(isLoading: true, error: null);
     
     try {
       final authResponse = await _apiService.verifyOtpAndLogin(
-        phoneNumber,
+        sessionId,
         otp,
       );
       
+      // Backend returns: { user: {...}, tokens: { access_token, refresh_token, ... } }
+      final tokens = authResponse['tokens'] as Map<String, dynamic>;
+      final userData = authResponse['user'] as Map<String, dynamic>;
+      
       // Store tokens
-      await StorageService.storeAuthToken(authResponse['access_token']);
-      await StorageService.storeRefreshToken(authResponse['refresh_token']);
-      await StorageService.storeUserId(authResponse['user']['id']);
-      await StorageService.storeUserPhone(phoneNumber);
+      await StorageService.storeAuthToken(tokens['access_token']);
+      await StorageService.storeRefreshToken(tokens['refresh_token']);
+      await StorageService.storeUserId(userData['id']);
       
       // Fetch user data
-      final user = User.fromJson(authResponse['user']);
-      final userProfile = authResponse['user_profile'] != null
-          ? UserProfile.fromJson(authResponse['user_profile'])
-          : null;
+      final user = User.fromJson(userData);
       
       state = state.copyWith(
         user: user,
-        userProfile: userProfile,
         isAuthenticated: true,
         isLoading: false,
       );

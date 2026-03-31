@@ -27,6 +27,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     logger.info("Starting inSwing backend application")
+
+    # Auto-create tables for SQLite dev mode (no Alembic migration needed)
+    if settings.DATABASE_URL.startswith("sqlite"):
+        from app.database import Base, engine
+
+        Base.metadata.create_all(bind=engine)
+        logger.info("SQLite tables created automatically (dev mode)")
+
     yield
     # Shutdown
     logger.info("Shutting down inSwing backend application")
@@ -43,10 +51,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
+# Add CORS middleware — allow all origins in DEBUG mode for Flutter web dev
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"] if settings.DEBUG else settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
