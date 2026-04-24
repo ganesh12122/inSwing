@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
-    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1"]
+    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1", "testserver"]
 
     # Database (PostgreSQL — use Neon/Supabase free tier)
     DATABASE_URL: str = "postgresql+psycopg2://user:password@localhost:5432/inswing"
