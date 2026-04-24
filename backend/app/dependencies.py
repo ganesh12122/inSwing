@@ -2,12 +2,13 @@ from typing import Optional
 
 import structlog
 from app.auth import get_user_id_from_token
-from app.database import get_db
+from app.database import get_async_db
 from app.models.user import User
 from app.schemas.user import UserRole
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
@@ -34,11 +35,13 @@ def get_current_user_id(
     return user_id
 
 
-def get_current_user(
-    db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)
+async def get_current_user(
+    db: AsyncSession = Depends(get_async_db),
+    user_id: str = Depends(get_current_user_id),
 ) -> User:
     """Get current user from database."""
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
 
     if not user:
         logger.warning("User not found", user_id=user_id)
@@ -55,7 +58,9 @@ def get_current_user(
     return user
 
 
-def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
     """Get current active user (alias for get_current_user)."""
     return current_user
 
@@ -63,7 +68,7 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 def require_role(required_role: UserRole):
     """Dependency factory for role-based authorization."""
 
-    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+    async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role != required_role:  # type: ignore[truthy-bool]
             logger.warning(
                 "Insufficient permissions",
@@ -80,7 +85,7 @@ def require_role(required_role: UserRole):
     return role_checker
 
 
-def require_host_role(current_user: User = Depends(get_current_user)) -> User:
+async def require_host_role(current_user: User = Depends(get_current_user)) -> User:
     """
     Require any authenticated active user (match host check is done per-endpoint).
 
@@ -91,7 +96,7 @@ def require_host_role(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-def require_admin_role(current_user: User = Depends(get_current_user)) -> User:
+async def require_admin_role(current_user: User = Depends(get_current_user)) -> User:
     """Require admin role."""
     if current_user.role != UserRole.admin:  # type: ignore[truthy-bool]
         logger.warning(
@@ -104,8 +109,8 @@ def require_admin_role(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-def get_optional_current_user(
-    db: Session = Depends(get_db),
+async def get_optional_current_user(
+    db: AsyncSession = Depends(get_async_db),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
 ) -> Optional[User]:
     """Get current user if authenticated, None otherwise."""
@@ -115,7 +120,8 @@ def get_optional_current_user(
     try:
         user_id = get_user_id_from_token(credentials.credentials)
         if user_id:
-            user = db.query(User).filter(User.id == user_id).first()
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalars().first()
             if user and user.is_active:  # type: ignore[truthy-bool]
                 return user
     except Exception as e:

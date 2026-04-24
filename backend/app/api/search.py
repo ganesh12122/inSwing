@@ -1,15 +1,15 @@
 from typing import List, Optional
 
 import structlog
-from app.database import get_db
+from app.database import get_async_db
 from app.dependencies import get_current_user
 from app.models.match import Match
 from app.models.players_in_match import PlayersInMatch
 from app.models.user import User
 from app.schemas import MatchSearchResponse, SearchResponse, UserSearchResponse
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import case, func, or_  # noqa: F401
-from sqlalchemy.orm import Session
+from sqlalchemy import case, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -21,7 +21,7 @@ async def search_users(
         ..., min_length=1, max_length=100, description="Search query for users"
     ),
     limit: int = Query(20, ge=1, le=50, description="Number of results to return"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Search for users by name or phone number."""
@@ -31,23 +31,21 @@ async def search_users(
         User.full_name.ilike(f"%{query}%"), User.phone_number.ilike(f"%{query}%")
     )
 
-    users = (
-        db.query(User)
-        .filter(search_filter, User.is_active == True)  # noqa: E712
+    users_result = await db.execute(
+        select(User)
+        .where(search_filter, User.is_active == True)  # noqa: E712
         .order_by(
-            # Prioritize exact matches first
             case(
                 (User.full_name.ilike(query), 1),
                 (User.phone_number.ilike(query), 1),
                 else_=2,
             ),
-            # Then sort by name similarity
             func.length(User.full_name),
             User.full_name,
         )
         .limit(limit)
-        .all()
     )
+    users = users_result.scalars().all()
 
     logger.info(
         "User search performed",
@@ -67,7 +65,7 @@ async def search_matches(
     ),
     status_filter: Optional[str] = Query(None, description="Filter by match status"),
     limit: int = Query(20, ge=1, le=50, description="Number of results to return"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Search for matches by venue or team names."""
@@ -84,18 +82,16 @@ async def search_matches(
     if status_filter:
         filters.append(Match.status == status_filter)
 
-    matches = (
-        db.query(Match)
-        .filter(*filters)
+    matches_result = await db.execute(
+        select(Match)
+        .where(*filters)
         .order_by(
-            # Prioritize venue matches first
             case((Match.venue.ilike(query), 1), else_=2),
-            # Then sort by creation date (newest first)
             Match.created_at.desc(),
         )
         .limit(limit)
-        .all()
     )
+    matches = matches_result.scalars().all()
 
     logger.info(
         "Match search performed",
@@ -119,7 +115,7 @@ async def combined_search(
     limit_per_type: int = Query(
         10, ge=1, le=25, description="Number of results per type"
     ),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Combined search for users and matches."""
@@ -132,9 +128,9 @@ async def combined_search(
             User.full_name.ilike(f"%{query}%"), User.phone_number.ilike(f"%{query}%")
         )
 
-        users = (
-            db.query(User)
-            .filter(user_filter, User.is_active == True)  # noqa: E712
+        users_result = await db.execute(
+            select(User)
+            .where(user_filter, User.is_active == True)  # noqa: E712
             .order_by(
                 case(
                     (User.full_name.ilike(query), 1),
@@ -145,8 +141,8 @@ async def combined_search(
                 User.full_name,
             )
             .limit(limit_per_type)
-            .all()
         )
+        users = users_result.scalars().all()
 
         results["users"] = users
 
@@ -158,15 +154,15 @@ async def combined_search(
             Match.team_b_name.ilike(f"%{query}%"),
         )
 
-        matches = (
-            db.query(Match)
-            .filter(match_filter)
+        matches_result = await db.execute(
+            select(Match)
+            .where(match_filter)
             .order_by(
                 case((Match.venue.ilike(query), 1), else_=2), Match.created_at.desc()
             )
             .limit(limit_per_type)
-            .all()
         )
+        matches = matches_result.scalars().all()
 
         results["matches"] = matches
 
@@ -191,7 +187,7 @@ async def get_search_suggestions(
         ..., min_length=1, max_length=50, description="Partial search query"
     ),
     limit: int = Query(10, ge=1, le=20, description="Number of suggestions"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get search suggestions based on partial query."""
@@ -199,50 +195,42 @@ async def get_search_suggestions(
     suggestions = []
 
     # Get user name suggestions
-    user_names = (
-        db.query(User.full_name)
-        .filter(
-            User.full_name.ilike(f"%{query}%"), User.is_active == True  # noqa: E712
-        )
+    user_names_result = await db.execute(
+        select(User.full_name)
+        .where(User.full_name.ilike(f"%{query}%"), User.is_active == True)  # noqa: E712
         .distinct()
         .order_by(func.length(User.full_name), User.full_name)
         .limit(limit // 2)
-        .all()
     )
-
-    suggestions.extend([name[0] for name in user_names])
+    suggestions.extend(user_names_result.scalars().all())
 
     # Get venue suggestions (Match has no 'title' column)
-    venues = (
-        db.query(Match.venue)
-        .filter(Match.venue.ilike(f"%{query}%"), Match.venue.isnot(None))
+    venues_result = await db.execute(
+        select(Match.venue)
+        .where(Match.venue.ilike(f"%{query}%"), Match.venue.isnot(None))
         .distinct()
         .order_by(func.length(Match.venue), Match.venue)
         .limit(limit // 2)
-        .all()
     )
-
-    suggestions.extend([venue[0] for venue in venues if venue[0]])
+    suggestions.extend([venue for venue in venues_result.scalars().all() if venue])
 
     # Get team name suggestions
-    team_a_names = (
-        db.query(Match.team_a_name)
-        .filter(Match.team_a_name.ilike(f"%{query}%"))
+    team_a_result = await db.execute(
+        select(Match.team_a_name)
+        .where(Match.team_a_name.ilike(f"%{query}%"))
         .distinct()
         .limit(limit // 4)
-        .all()
     )
 
-    team_b_names = (
-        db.query(Match.team_b_name)
-        .filter(Match.team_b_name.ilike(f"%{query}%"))
+    team_b_result = await db.execute(
+        select(Match.team_b_name)
+        .where(Match.team_b_name.ilike(f"%{query}%"))
         .distinct()
         .limit(limit // 4)
-        .all()
     )
 
-    suggestions.extend([name[0] for name in team_a_names if name[0]])
-    suggestions.extend([name[0] for name in team_b_names if name[0]])
+    suggestions.extend([name for name in team_a_result.scalars().all() if name])
+    suggestions.extend([name for name in team_b_result.scalars().all() if name])
 
     # Remove duplicates and limit
     suggestions = list(set(suggestions))[:limit]
@@ -262,7 +250,7 @@ async def get_search_suggestions(
 @router.get("/popular-searches")
 async def get_popular_searches(
     limit: int = Query(10, ge=1, le=20, description="Number of popular searches"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get popular search terms based on user activity."""
@@ -270,30 +258,30 @@ async def get_popular_searches(
     popular_terms = []
 
     # Get most active user names
-    active_users = (
-        db.query(User.full_name)
+    active_users_result = await db.execute(
+        select(User.full_name)
         .join(PlayersInMatch, PlayersInMatch.user_id == User.id)
         .join(Match, Match.id == PlayersInMatch.match_id)
-        .filter(Match.status == "finished", User.is_active == True)  # noqa: E712
+        .where(Match.status == "finished", User.is_active == True)  # noqa: E712
         .group_by(User.full_name)
         .order_by(func.count(PlayersInMatch.id).desc())
         .limit(limit // 2)
-        .all()
     )
 
-    popular_terms.extend([user[0] for user in active_users])
+    popular_terms.extend(active_users_result.scalars().all())
 
     # Get most common match venues
-    common_venues = (
-        db.query(Match.venue)
-        .filter(Match.venue.isnot(None), Match.status == "finished")
+    common_venues_result = await db.execute(
+        select(Match.venue)
+        .where(Match.venue.isnot(None), Match.status == "finished")
         .group_by(Match.venue)
         .order_by(func.count(Match.id).desc())
         .limit(limit // 2)
-        .all()
     )
 
-    popular_terms.extend([venue[0] for venue in common_venues if venue[0]])
+    popular_terms.extend(
+        [venue for venue in common_venues_result.scalars().all() if venue]
+    )
 
     # Remove duplicates and limit
     popular_terms = list(set(popular_terms))[:limit]

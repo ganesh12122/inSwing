@@ -13,7 +13,7 @@ from app.auth import (
     verify_password,
     verify_token,
 )
-from app.database import get_db
+from app.database import get_async_db
 from app.dependencies import get_current_user_id
 from app.models.otp_session import OTPSession
 from app.models.user import User
@@ -30,7 +30,8 @@ from app.schemas import (
 )
 from app.settings import settings
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -42,10 +43,11 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=UserLoginResponse)
-async def register(req: RegisterRequest, db: Session = Depends(get_db)):
+async def register(req: RegisterRequest, db: AsyncSession = Depends(get_async_db)):
     """Register a new user with email + password."""
     # Check if email already taken
-    existing = db.query(User).filter(User.email == req.email).first()
+    existing_result = await db.execute(select(User).where(User.email == req.email))
+    existing = existing_result.scalars().first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -61,8 +63,8 @@ async def register(req: RegisterRequest, db: Session = Depends(get_db)):
         role="player",
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     logger.info("User registered", user_id=user.id, email=req.email)
 
@@ -83,9 +85,10 @@ async def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=UserLoginResponse)
-async def email_login(req: EmailLoginRequest, db: Session = Depends(get_db)):
+async def email_login(req: EmailLoginRequest, db: AsyncSession = Depends(get_async_db)):
     """Login with email + password."""
-    user = db.query(User).filter(User.email == req.email).first()
+    user_result = await db.execute(select(User).where(User.email == req.email))
+    user = user_result.scalars().first()
 
     if not user or not user.password_hash:
         raise HTTPException(
@@ -128,7 +131,7 @@ async def email_login(req: EmailLoginRequest, db: Session = Depends(get_db)):
 # =============================================================================
 
 
-async def _handle_login(otp_request: OTPCreate, db: Session):
+async def _handle_login(otp_request: OTPCreate, db: AsyncSession):
     """
     Core login logic — sends OTP to phone number.
     Creates user if phone number is new.
@@ -143,7 +146,8 @@ async def _handle_login(otp_request: OTPCreate, db: Session):
         )
 
     # Check if user exists, create if not
-    user = db.query(User).filter(User.phone_number == phone).first()
+    user_result = await db.execute(select(User).where(User.phone_number == phone))
+    user = user_result.scalars().first()
     if not user:
         # Create new user
         user = User(
@@ -152,18 +156,18 @@ async def _handle_login(otp_request: OTPCreate, db: Session):
             role="player",
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
         logger.info("New user created", user_id=user.id, phone=phone)
 
     # Check for existing active OTP session
-    existing_otp = (
-        db.query(OTPSession)
-        .filter(
-            OTPSession.phone_number == phone, OTPSession.expires_at > datetime.utcnow()
+    existing_otp_result = await db.execute(
+        select(OTPSession).where(
+            OTPSession.phone_number == phone,
+            OTPSession.expires_at > datetime.utcnow(),
         )
-        .first()
     )
+    existing_otp = existing_otp_result.scalars().first()
 
     if existing_otp:
         # Check if max attempts reached
@@ -199,7 +203,7 @@ async def _handle_login(otp_request: OTPCreate, db: Session):
         phone_number=phone, otp_code=otp_code, expires_at=expires_at
     )
     db.add(otp_session)
-    db.commit()
+    await db.commit()
 
     # In production, send OTP via SMS here.
     # In DEBUG mode, OTP is returned in the response for convenience.
@@ -215,19 +219,19 @@ async def _handle_login(otp_request: OTPCreate, db: Session):
 
 
 @router.post("/login-otp", response_model=OTPResponse)
-async def login(otp_request: OTPCreate, db: Session = Depends(get_db)):
+async def login(otp_request: OTPCreate, db: AsyncSession = Depends(get_async_db)):
     """Initiate OTP login by sending OTP to phone number."""
     return await _handle_login(otp_request, db)
 
 
 @router.post("/request-otp", response_model=OTPResponse)
-async def request_otp(otp_request: OTPCreate, db: Session = Depends(get_db)):
+async def request_otp(otp_request: OTPCreate, db: AsyncSession = Depends(get_async_db)):
     """Alias for /login — Flutter calls this route."""
     return await _handle_login(otp_request, db)
 
 
 @router.post("/verify-otp", response_model=UserLoginResponse)
-async def verify_otp(otp_verify: OTPVerify, db: Session = Depends(get_db)):
+async def verify_otp(otp_verify: OTPVerify, db: AsyncSession = Depends(get_async_db)):
     """
     Verify OTP code and return JWT tokens.
     """
@@ -238,14 +242,13 @@ async def verify_otp(otp_verify: OTPVerify, db: Session = Depends(get_db)):
         )
 
     # Find active OTP session by session_id
-    otp_session = (
-        db.query(OTPSession)
-        .filter(
+    otp_session_result = await db.execute(
+        select(OTPSession).where(
             OTPSession.id == otp_verify.session_id,
             OTPSession.expires_at > datetime.utcnow(),
         )
-        .first()
     )
+    otp_session = otp_session_result.scalars().first()
 
     if not otp_session:
         logger.warning("No active OTP session found", session_id=otp_verify.session_id)
@@ -269,7 +272,7 @@ async def verify_otp(otp_verify: OTPVerify, db: Session = Depends(get_db)):
     # Verify OTP code
     if otp_session.otp_code != otp_verify.otp_code:
         otp_session.increment_attempts()
-        db.commit()
+        await db.commit()
 
         logger.warning("Invalid OTP code", phone=phone, attempts=otp_session.attempts)
         raise HTTPException(
@@ -278,7 +281,8 @@ async def verify_otp(otp_verify: OTPVerify, db: Session = Depends(get_db)):
         )
 
     # OTP verified successfully
-    user = db.query(User).filter(User.phone_number == phone).first()
+    user_result = await db.execute(select(User).where(User.phone_number == phone))
+    user = user_result.scalars().first()
     if not user:
         logger.error("User not found after OTP verification", phone=phone)
         raise HTTPException(
@@ -287,7 +291,7 @@ async def verify_otp(otp_verify: OTPVerify, db: Session = Depends(get_db)):
 
     # Delete OTP session
     db.delete(otp_session)
-    db.commit()
+    await db.commit()
 
     # Create JWT tokens
     access_token = create_access_token(data={"sub": user.id})

@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 import structlog
-from app.database import get_db
+from app.database import get_async_db
 from app.dependencies import (
     get_current_user,
     get_optional_current_user,
@@ -19,8 +19,8 @@ from app.schemas import (
     UserUpdate,
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -29,7 +29,7 @@ router = APIRouter()
 @router.post("/", response_model=UserResponse)
 async def create_user(
     user_data: UserCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """
@@ -46,16 +46,15 @@ async def create_user(
         )
 
     # Check if user already exists
-    existing_user = (
-        db.query(User)
-        .filter(
+    existing_user_result = await db.execute(
+        select(User).where(
             or_(
                 User.phone_number == user_data.phone_number,
                 User.email == user_data.email,
             )
         )
-        .first()
     )
+    existing_user = existing_user_result.scalars().first()
 
     if existing_user:
         if existing_user.phone_number == user_data.phone_number:
@@ -86,13 +85,13 @@ async def create_user(
     )
 
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     # Create default profile
     profile = Profile(user_id=user.id)
     db.add(profile)
-    db.commit()
+    await db.commit()
 
     logger.info("User created successfully", user_id=user.id, phone=user.phone_number)
 
@@ -102,11 +101,12 @@ async def create_user(
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get a user by ID."""
-    user = db.query(User).filter(User.id == user_id).first()
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalars().first()
 
     if not user:
         raise HTTPException(
@@ -119,11 +119,12 @@ async def get_user(
 @router.get("/{user_id}/profile", response_model=UserProfileResponse)
 async def get_user_profile(
     user_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get user profile with statistics."""
-    user = db.query(User).filter(User.id == user_id).first()
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalars().first()
 
     if not user:
         logger.warning(
@@ -133,7 +134,8 @@ async def get_user_profile(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    profile = db.query(Profile).filter(Profile.user_id == user_id).first()
+    profile_result = await db.execute(select(Profile).where(Profile.user_id == user_id))
+    profile = profile_result.scalars().first()
 
     logger.info("User profile retrieved", user_id=user_id, requested_by=current_user.id)
 
@@ -144,7 +146,7 @@ async def get_user_profile(
 async def update_user_profile(
     user_id: str,
     user_update: UserUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Update user profile information."""
@@ -160,7 +162,8 @@ async def update_user_profile(
             detail="You can only update your own profile",
         )
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalars().first()
 
     if not user:
         logger.warning("User not found for update", user_id=user_id)
@@ -171,11 +174,10 @@ async def update_user_profile(
     # Update fields if provided
     if user_update.email is not None:
         # Check if email is already taken by another user
-        existing_user = (
-            db.query(User)
-            .filter(User.email == user_update.email, User.id != user_id)
-            .first()
+        existing_user_result = await db.execute(
+            select(User).where(User.email == user_update.email, User.id != user_id)
         )
+        existing_user = existing_user_result.scalars().first()
 
         if existing_user:
             logger.warning(
@@ -197,8 +199,8 @@ async def update_user_profile(
     if user_update.avatar_url is not None:
         user.avatar_url = user_update.avatar_url
 
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     logger.info("User profile updated", user_id=user_id, updated_by=current_user.id)
 
@@ -216,15 +218,15 @@ async def search_users(
     name: Optional[str] = Query(None, min_length=1, max_length=100),
     phone: Optional[str] = Query(None, min_length=3, max_length=15),
     limit: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Search users by name, email, or phone number."""
-    query = db.query(User)
+    statement = select(User)
 
     if q:
         # Universal search: match name, email, or phone
-        query = query.filter(
+        statement = statement.where(
             or_(
                 User.full_name.ilike(f"%{q}%"),
                 User.email.ilike(f"%{q}%"),
@@ -233,10 +235,10 @@ async def search_users(
         )
     elif name:
         # Search by name (case-insensitive partial match)
-        query = query.filter(User.full_name.ilike(f"%{name}%"))
+        statement = statement.where(User.full_name.ilike(f"%{name}%"))
     elif phone:
         # Search by phone (partial match)
-        query = query.filter(User.phone_number.ilike(f"%{phone}%"))
+        statement = statement.where(User.phone_number.ilike(f"%{phone}%"))
     else:
         logger.warning("Empty search query", user_id=current_user.id)
         raise HTTPException(
@@ -244,11 +246,19 @@ async def search_users(
             detail="Please provide a search query (q, name, or phone)",
         )
 
-    users = query.filter(User.is_active == True).limit(limit).all()
+    users_result = await db.execute(
+        statement.where(User.is_active == True).limit(limit)  # noqa: E712
+    )
+    users = users_result.scalars().all()
 
     # Get profiles for users
     user_ids = [user.id for user in users]
-    profiles = db.query(Profile).filter(Profile.user_id.in_(user_ids)).all()
+    profiles = []
+    if user_ids:
+        profiles_result = await db.execute(
+            select(Profile).where(Profile.user_id.in_(user_ids))
+        )
+        profiles = profiles_result.scalars().all()
     profile_map = {profile.user_id: profile for profile in profiles}
 
     results = []

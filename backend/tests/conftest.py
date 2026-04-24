@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from app.auth.jwt import create_access_token
-from app.database import Base, get_db
+from app.database import Base, get_async_db, get_db
 from app.main import app
 from app.models.ball import Ball
 from app.models.innings import Innings
@@ -26,6 +26,7 @@ from app.models.profile import Profile
 from app.models.user import User
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 # ============================================================================
@@ -37,6 +38,19 @@ SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
 test_engine = create_engine(
     SQLALCHEMY_TEST_URL,
     connect_args={"check_same_thread": False},
+)
+
+test_async_engine = create_async_engine(
+    "sqlite+aiosqlite:///./test.db",
+    connect_args={"check_same_thread": False},
+)
+
+TestingAsyncSessionLocal = async_sessionmaker(
+    test_async_engine,
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
 )
 
 
@@ -78,7 +92,12 @@ def client(db_session):
         finally:
             pass
 
+    async def override_get_async_db():
+        async with TestingAsyncSessionLocal() as session:
+            yield session
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_async_db] = override_get_async_db
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
@@ -147,4 +166,5 @@ def admin_user(db_session: Session) -> User:
 def get_auth_headers(user: User) -> dict:
     """Generate Bearer token headers for a user."""
     token = create_access_token(data={"sub": user.id})
+    return {"Authorization": f"Bearer {token}"}
     return {"Authorization": f"Bearer {token}"}

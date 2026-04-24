@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import structlog
-from app.database import get_db
+from app.database import get_async_db
 from app.dependencies import get_current_user
 from app.models.ball import Ball
 from app.models.innings import Innings
@@ -16,8 +16,8 @@ from app.schemas import (
     TimePeriod,
 )
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, case, desc, extract, func  # noqa: F401
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, case, desc, extract, func, select  # noqa: F401
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -29,7 +29,7 @@ async def get_batting_leaderboard(
         TimePeriod.ALL_TIME, description="Time period for leaderboard"
     ),
     limit: int = Query(50, ge=1, le=200, description="Number of entries to return"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get batting leaderboard with top run scorers."""
@@ -38,8 +38,8 @@ async def get_batting_leaderboard(
     time_filter = _build_time_filter(period)
 
     # Query for batting statistics
-    batting_stats = (
-        db.query(
+    batting_statement = (
+        select(
             User.id,
             User.full_name,
             User.avatar_url,
@@ -52,13 +52,14 @@ async def get_batting_leaderboard(
         .join(Ball, Ball.batsman_id == User.id)
         .join(Innings, Innings.id == Ball.innings_id)
         .join(Match, Match.id == Innings.match_id)
-        .filter(and_(Match.status == "finished", time_filter))
+        .where(and_(Match.status == "finished", time_filter))
         .group_by(User.id, User.full_name, User.avatar_url)
         .having(func.sum(Ball.runs_off_bat) > 0)
         .order_by(desc("total_runs"))
         .limit(limit)
-        .all()
     )
+    batting_result = await db.execute(batting_statement)
+    batting_stats = batting_result.all()
 
     entries = []
     for i, stat in enumerate(batting_stats, 1):
@@ -103,7 +104,7 @@ async def get_bowling_leaderboard(
         TimePeriod.ALL_TIME, description="Time period for leaderboard"
     ),
     limit: int = Query(50, ge=1, le=200, description="Number of entries to return"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get bowling leaderboard with best bowling figures."""
@@ -111,8 +112,8 @@ async def get_bowling_leaderboard(
     time_filter = _build_time_filter(period)
 
     # Query for bowling statistics
-    bowling_stats = (
-        db.query(
+    bowling_statement = (
+        select(
             User.id,
             User.full_name,
             User.avatar_url,
@@ -127,13 +128,14 @@ async def get_bowling_leaderboard(
         .join(Ball, Ball.bowler_id == User.id)
         .join(Innings, Innings.id == Ball.innings_id)
         .join(Match, Match.id == Innings.match_id)
-        .filter(and_(Match.status == "finished", time_filter))
+        .where(and_(Match.status == "finished", time_filter))
         .group_by(User.id, User.full_name, User.avatar_url)
         .having(func.count(Ball.id).filter(Ball.wicket_type.isnot(None)) > 0)
         .order_by(desc("wickets"), "runs_conceded")  # Fewer runs conceded is better
         .limit(limit)
-        .all()
     )
+    bowling_result = await db.execute(bowling_statement)
+    bowling_stats = bowling_result.all()
 
     entries = []
     for i, stat in enumerate(bowling_stats, 1):
@@ -181,7 +183,7 @@ async def get_matches_hosted_leaderboard(
         TimePeriod.ALL_TIME, description="Time period for leaderboard"
     ),
     limit: int = Query(50, ge=1, le=200, description="Number of entries to return"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get leaderboard for most matches hosted."""
@@ -189,8 +191,8 @@ async def get_matches_hosted_leaderboard(
     time_filter = _build_time_filter(period)
 
     # PostgreSQL-compatible: use EXTRACT(EPOCH FROM ...) instead of TIMESTAMPDIFF
-    hosted_stats = (
-        db.query(
+    hosted_statement = (
+        select(
             User.id,
             User.full_name,
             User.avatar_url,
@@ -200,13 +202,14 @@ async def get_matches_hosted_leaderboard(
             ).label("avg_match_duration_seconds"),
         )
         .join(Match, Match.host_user_id == User.id)
-        .filter(and_(Match.status == "finished", time_filter))
+        .where(and_(Match.status == "finished", time_filter))
         .group_by(User.id, User.full_name, User.avatar_url)
         .having(func.count(Match.id) > 0)
         .order_by(desc("matches_hosted"))
         .limit(limit)
-        .all()
     )
+    hosted_result = await db.execute(hosted_statement)
+    hosted_stats = hosted_result.all()
 
     entries = []
     for i, stat in enumerate(hosted_stats, 1):
@@ -253,7 +256,7 @@ async def get_player_rating_leaderboard(
         TimePeriod.ALL_TIME, description="Time period for leaderboard"
     ),
     limit: int = Query(50, ge=1, le=200, description="Number of entries to return"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get leaderboard based on player performance (matches played + runs + wickets)."""
@@ -262,8 +265,8 @@ async def get_player_rating_leaderboard(
 
     # Query for player participation and performance
     # Note: User model has no 'rating' column — calculate a simple composite score
-    player_stats = (
-        db.query(
+    player_statement = (
+        select(
             User.id,
             User.full_name,
             User.avatar_url,
@@ -279,13 +282,14 @@ async def get_player_rating_leaderboard(
         .outerjoin(
             Ball, and_(Ball.batsman_id == User.id, Ball.innings_id == Innings.id)
         )
-        .filter(and_(Match.status == "finished", time_filter))
+        .where(and_(Match.status == "finished", time_filter))
         .group_by(User.id, User.full_name, User.avatar_url)
         .having(func.count(func.distinct(PlayersInMatch.match_id)) > 0)
         .order_by(desc("matches_played"), desc("total_runs"))
         .limit(limit)
-        .all()
     )
+    player_result = await db.execute(player_statement)
+    player_stats = player_result.all()
 
     entries = []
     for i, stat in enumerate(player_stats, 1):
