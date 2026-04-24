@@ -214,9 +214,9 @@ async def _handle_login(otp_request: OTPCreate, db: Session):
     )
 
 
-@router.post("/login", response_model=OTPResponse)
+@router.post("/login-otp", response_model=OTPResponse)
 async def login(otp_request: OTPCreate, db: Session = Depends(get_db)):
-    """Initiate login by sending OTP to phone number."""
+    """Initiate OTP login by sending OTP to phone number."""
     return await _handle_login(otp_request, db)
 
 

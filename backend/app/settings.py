@@ -1,5 +1,6 @@
 from typing import List
 
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -9,10 +10,12 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "inSwing Cricket Scoring"
     APP_VERSION: str = "1.0.0"
+    ENVIRONMENT: str = "development"
     DEBUG: bool = False
+    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1"]
 
     # Database (PostgreSQL — use Neon/Supabase free tier)
-    DATABASE_URL: str = "postgresql://user:password@localhost:5432/inswing"
+    DATABASE_URL: str = "postgresql+psycopg2://user:password@localhost:5432/inswing"
 
     # JWT Configuration
     SECRET_KEY: str = "CHANGE-THIS-TO-A-SECURE-RANDOM-KEY"
@@ -53,6 +56,37 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
+
+    @field_validator("CORS_ORIGINS", "ALLOWED_HOSTS", mode="before")
+    @classmethod
+    def _parse_list_values(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("[") and value.endswith("]"):
+                # Let pydantic parse JSON-style list strings
+                return value
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @model_validator(mode="after")
+    def _validate_production_safety(self):
+        is_production = self.ENVIRONMENT.lower() == "production"
+        if not is_production:
+            return self
+
+        if self.DEBUG:
+            raise ValueError("DEBUG must be false in production")
+
+        if self.SECRET_KEY == "CHANGE-THIS-TO-A-SECURE-RANDOM-KEY":
+            raise ValueError("SECRET_KEY must be set to a secure value in production")
+
+        if "*" in self.ALLOWED_HOSTS:
+            raise ValueError("ALLOWED_HOSTS cannot contain '*' in production")
+
+        if "*" in self.CORS_ORIGINS:
+            raise ValueError("CORS_ORIGINS cannot contain '*' in production")
+
+        return self
 
     class Config:
         env_file = ".env"
