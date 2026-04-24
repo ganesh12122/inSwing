@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: inswing-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inswing
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-inswing_dev_password}
+      POSTGRES_DB: inswing
+    ports:
+      - "5432:5432"
+    volumes:
+      - inswing_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inswing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  inswing_postgres_data:
