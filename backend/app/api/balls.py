@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import structlog
-from app.database import get_db
+from app.database import get_async_db
 from app.dependencies import get_current_user, require_host_role
 from app.models.ball import Ball
 from app.models.innings import Innings
@@ -11,8 +11,8 @@ from app.models.players_in_match import PlayersInMatch
 from app.models.user import User
 from app.schemas import BallCreate, BallResponse, BallUpdate, InningsResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, or_  # noqa: F401 - may be used in query filters
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, select  # noqa: F401 - may be used in query filters
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -22,11 +22,12 @@ router = APIRouter()
 async def create_innings(
     match_id: str,
     innings_data: dict,  # {batting_team: str, overs_allocated: int}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_host_role),
 ):
     """Create a new innings for a match."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    match = match_result.scalars().first()
 
     if not match:
         logger.warning(
@@ -87,14 +88,14 @@ async def create_innings(
     )
 
     db.add(innings)
-    db.commit()
-    db.refresh(innings)
+    await db.commit()
+    await db.refresh(innings)
 
     # Update match status to live if this is the first innings
     if match.status == "toss_done":
         match.status = "live"
         match.started_at = datetime.utcnow()
-        db.commit()
+        await db.commit()
 
     logger.info(
         "Innings created successfully",
@@ -110,11 +111,12 @@ async def create_innings(
 @router.get("/{match_id}/innings", response_model=List[InningsResponse])
 async def get_innings(
     match_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get all innings for a match."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    match = match_result.scalars().first()
 
     if not match:
         logger.warning(
@@ -126,12 +128,10 @@ async def get_innings(
             status_code=status.HTTP_404_NOT_FOUND, detail="Match not found"
         )
 
-    innings = (
-        db.query(Innings)
-        .filter(Innings.match_id == match_id)
-        .order_by(Innings.created_at)
-        .all()
+    innings_result = await db.execute(
+        select(Innings).where(Innings.match_id == match_id).order_by(Innings.created_at)
     )
+    innings = innings_result.scalars().all()
 
     logger.info(
         "Innings retrieved",
@@ -148,12 +148,13 @@ async def record_ball(
     match_id: str,
     innings_id: str,
     ball_data: BallCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_host_role),
 ):
     """Record a ball in the innings (idempotent with client_event_id)."""
     # Validate match and innings
-    match = db.query(Match).filter(Match.id == match_id).first()
+    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    match = match_result.scalars().first()
     if not match:
         logger.warning(
             "Match not found for ball recording",
@@ -164,11 +165,10 @@ async def record_ball(
             status_code=status.HTTP_404_NOT_FOUND, detail="Match not found"
         )
 
-    innings = (
-        db.query(Innings)
-        .filter(Innings.id == innings_id, Innings.match_id == match_id)
-        .first()
+    innings_result = await db.execute(
+        select(Innings).where(Innings.id == innings_id, Innings.match_id == match_id)
     )
+    innings = innings_result.scalars().first()
 
     if not innings:
         logger.warning(
@@ -203,14 +203,13 @@ async def record_ball(
 
     # Check for idempotency (client_event_id)
     if ball_data.client_event_id:
-        existing_ball = (
-            db.query(Ball)
-            .filter(
+        existing_ball_result = await db.execute(
+            select(Ball).where(
                 Ball.innings_id == innings_id,
                 Ball.client_event_id == ball_data.client_event_id,
             )
-            .first()
         )
+        existing_ball = existing_ball_result.scalars().first()
 
         if existing_ball:
             logger.info(
@@ -222,14 +221,13 @@ async def record_ball(
 
     # Validate players are in the match
     if ball_data.batsman_id:
-        batsman_in_match = (
-            db.query(PlayersInMatch)
-            .filter(
+        batsman_result = await db.execute(
+            select(PlayersInMatch).where(
                 PlayersInMatch.match_id == match_id,
                 PlayersInMatch.user_id == ball_data.batsman_id,
             )
-            .first()
         )
+        batsman_in_match = batsman_result.scalars().first()
 
         if not batsman_in_match:
             raise HTTPException(
@@ -238,14 +236,13 @@ async def record_ball(
             )
 
     if ball_data.bowler_id:
-        bowler_in_match = (
-            db.query(PlayersInMatch)
-            .filter(
+        bowler_result = await db.execute(
+            select(PlayersInMatch).where(
                 PlayersInMatch.match_id == match_id,
                 PlayersInMatch.user_id == ball_data.bowler_id,
             )
-            .first()
         )
+        bowler_in_match = bowler_result.scalars().first()
 
         if not bowler_in_match:
             raise HTTPException(
@@ -291,8 +288,8 @@ async def record_ball(
         innings.is_completed = True
         innings.completed_at = datetime.utcnow()
 
-    db.commit()
-    db.refresh(ball)
+    await db.commit()
+    await db.refresh(ball)
 
     logger.info(
         "Ball recorded successfully",
@@ -314,12 +311,13 @@ async def get_balls(
     innings_id: str,
     over: Optional[int] = Query(None, ge=1, le=50),
     limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get balls in an innings with optional filtering."""
     # Validate match and innings
-    match = db.query(Match).filter(Match.id == match_id).first()
+    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    match = match_result.scalars().first()
     if not match:
         logger.warning(
             "Match not found for balls retrieval",
@@ -330,11 +328,10 @@ async def get_balls(
             status_code=status.HTTP_404_NOT_FOUND, detail="Match not found"
         )
 
-    innings = (
-        db.query(Innings)
-        .filter(Innings.id == innings_id, Innings.match_id == match_id)
-        .first()
+    innings_result = await db.execute(
+        select(Innings).where(Innings.id == innings_id, Innings.match_id == match_id)
     )
+    innings = innings_result.scalars().first()
 
     if not innings:
         logger.warning(
@@ -348,12 +345,15 @@ async def get_balls(
         )
 
     # Query balls
-    query = db.query(Ball).filter(Ball.innings_id == innings_id)
+    statement = select(Ball).where(Ball.innings_id == innings_id)
 
     if over:
-        query = query.filter(Ball.over_number == over)
+        statement = statement.where(Ball.over_number == over)
 
-    balls = query.order_by(Ball.created_at.desc()).limit(limit).all()
+    balls_result = await db.execute(
+        statement.order_by(Ball.created_at.desc()).limit(limit)
+    )
+    balls = balls_result.scalars().all()
 
     logger.info(
         "Balls retrieved",
@@ -376,12 +376,13 @@ async def update_ball(
     innings_id: str,
     ball_id: str,
     ball_update: BallUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_host_role),
 ):
     """Update a ball record (for undo functionality)."""
     # Validate match and innings
-    match = db.query(Match).filter(Match.id == match_id).first()
+    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    match = match_result.scalars().first()
     if not match:
         logger.warning(
             "Match not found for ball update",
@@ -392,11 +393,10 @@ async def update_ball(
             status_code=status.HTTP_404_NOT_FOUND, detail="Match not found"
         )
 
-    innings = (
-        db.query(Innings)
-        .filter(Innings.id == innings_id, Innings.match_id == match_id)
-        .first()
+    innings_result = await db.execute(
+        select(Innings).where(Innings.id == innings_id, Innings.match_id == match_id)
     )
+    innings = innings_result.scalars().first()
 
     if not innings:
         logger.warning(
@@ -410,9 +410,10 @@ async def update_ball(
         )
 
     # Find the ball
-    ball = (
-        db.query(Ball).filter(Ball.id == ball_id, Ball.innings_id == innings_id).first()
+    ball_result = await db.execute(
+        select(Ball).where(Ball.id == ball_id, Ball.innings_id == innings_id)
     )
+    ball = ball_result.scalars().first()
 
     if not ball:
         logger.warning(
@@ -471,8 +472,8 @@ async def update_ball(
     wicket_diff = (1 if ball.wicket_type else 0) - (1 if old_wicket else 0)
     innings.wickets += wicket_diff
 
-    db.commit()
-    db.refresh(ball)
+    await db.commit()
+    await db.refresh(ball)
 
     logger.info(
         "Ball updated successfully",
@@ -485,4 +486,5 @@ async def update_ball(
         user_id=current_user.id,
     )
 
+    return ball
     return ball
