@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Ensure all models are registered with SQLAlchemy for Alembic
 import app.models  # noqa: F401
 from app.api import api_router
-from app.database import engine
+from app.database import async_engine, engine
 from app.error_handlers import register_exception_handlers
 from app.logging_config import RequestLoggingMiddleware, configure_logging
 from app.settings import settings
@@ -95,8 +95,8 @@ async def health_check():
     """Health check endpoint."""
     db_ok = True
     try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+        async with async_engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
     except Exception:
         db_ok = False
 

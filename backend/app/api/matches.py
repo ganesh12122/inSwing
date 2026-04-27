@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import structlog
-from app.database import get_db
+from app.database import get_async_db
 from app.dependencies import (
     get_current_user,
     get_optional_current_user,
@@ -21,8 +21,9 @@ from app.schemas import (
     TossUpdate,
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -36,7 +37,7 @@ router = APIRouter()
 @router.post("/", response_model=MatchResponse)
 async def create_match(
     match_data: MatchCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_host_role),
 ):
     """Create a new cricket match.
@@ -59,8 +60,8 @@ async def create_match(
     )
 
     db.add(match)
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     # Add host as captain in team A
     host_player = PlayersInMatch(
@@ -72,7 +73,7 @@ async def create_match(
         added_by=current_user.id,
     )
     db.add(host_player)
-    db.commit()
+    await db.commit()
 
     logger.info(
         "Match created",
@@ -97,17 +98,17 @@ async def list_matches(
     user_id: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """List matches with optional filtering."""
-    query = db.query(Match)
+    statement = select(Match)
 
     if status:
-        query = query.filter(Match.status == status.value)
+        statement = statement.where(Match.status == status.value)
 
     if match_type:
-        query = query.filter(Match.match_type == match_type.value)
+        statement = statement.where(Match.match_type == match_type.value)
 
     # If a specific user_id filter is provided, use it.
     # Otherwise, if logged in, show only the current user's matches.
@@ -117,23 +118,28 @@ async def list_matches(
 
     if filter_user_id:
         # Filter matches where user is host, opponent, or a player
-        user_match_ids = (
-            db.query(PlayersInMatch.match_id)
-            .filter(PlayersInMatch.user_id == filter_user_id)
-            .subquery()
+        user_match_ids_subq = (
+            select(PlayersInMatch.match_id)
+            .where(PlayersInMatch.user_id == filter_user_id)
+            .scalar_subquery()
         )
-        query = query.filter(
+        statement = statement.where(
             or_(
-                Match.id.in_(user_match_ids),
+                Match.id.in_(user_match_ids_subq),
                 Match.host_user_id == filter_user_id,
                 Match.opponent_captain_id == filter_user_id,
             )
         )
 
-    query = query.order_by(Match.created_at.desc())
+    # Count total
+    count_stmt = select(func.count()).select_from(statement.subquery())
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar()
 
-    total = query.count()
-    matches = query.offset((page - 1) * per_page).limit(per_page).all()
+    statement = statement.order_by(Match.created_at.desc())
+    statement = statement.offset((page - 1) * per_page).limit(per_page)
+    result = await db.execute(statement)
+    matches = result.scalars().all()
 
     logger.info(
         "Matches listed",
@@ -155,30 +161,35 @@ async def my_matches(
     status: Optional[MatchStatus] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get all matches where current user is host, opponent captain, or player."""
-    user_match_ids = (
-        db.query(PlayersInMatch.match_id)
-        .filter(PlayersInMatch.user_id == current_user.id)
-        .subquery()
+    user_match_ids_subq = (
+        select(PlayersInMatch.match_id)
+        .where(PlayersInMatch.user_id == current_user.id)
+        .scalar_subquery()
     )
-    query = db.query(Match).filter(
+    statement = select(Match).where(
         or_(
-            Match.id.in_(user_match_ids),
+            Match.id.in_(user_match_ids_subq),
             Match.host_user_id == current_user.id,
             Match.opponent_captain_id == current_user.id,
         )
     )
 
     if status:
-        query = query.filter(Match.status == status.value)
+        statement = statement.where(Match.status == status.value)
 
-    query = query.order_by(Match.created_at.desc())
+    statement = statement.order_by(Match.created_at.desc())
 
-    total = query.count()
-    matches = query.offset((page - 1) * per_page).limit(per_page).all()
+    count_stmt = select(func.count()).select_from(statement.subquery())
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar()
+
+    statement = statement.offset((page - 1) * per_page).limit(per_page)
+    result = await db.execute(statement)
+    matches = result.scalars().all()
 
     return MatchListResponse(
         matches=[MatchResponse.from_match(m) for m in matches],
@@ -191,11 +202,12 @@ async def my_matches(
 @router.get("/{match_id}", response_model=MatchResponse)
 async def get_match(
     match_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Get match details by ID."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
 
     if not match:
         raise HTTPException(
@@ -215,14 +227,15 @@ async def get_match(
 async def invite_opponent(
     match_id: str,
     invite_data: dict,  # {opponent_user_id: str, message?: str}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Invite an opponent captain to a dual-captain match.
 
     Body: {"opponent_user_id": "uuid", "message": "optional message"}
     """
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -249,7 +262,8 @@ async def invite_opponent(
         raise HTTPException(status_code=400, detail="You cannot invite yourself")
 
     # Check opponent exists
-    opponent = db.query(User).filter(User.id == opponent_id).first()
+    opp_result = await db.execute(select(User).where(User.id == opponent_id))
+    opponent = opp_result.scalars().first()
     if not opponent:
         raise HTTPException(status_code=404, detail="Opponent user not found")
 
@@ -274,8 +288,8 @@ async def invite_opponent(
     )
     db.add(notification)
 
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     logger.info(
         "Match invitation sent",
@@ -291,14 +305,15 @@ async def invite_opponent(
 async def accept_invitation(
     match_id: str,
     accept_data: dict,  # {team_b_name: str}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Accept a match invitation and set team B name.
 
     Body: {"team_b_name": "Team Name"}
     """
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -345,8 +360,8 @@ async def accept_invitation(
     )
     db.add(notification)
 
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     logger.info(
         "Match invitation accepted",
@@ -361,11 +376,12 @@ async def accept_invitation(
 @router.post("/{match_id}/decline", response_model=dict)
 async def decline_invitation(
     match_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Decline a match invitation."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -391,7 +407,7 @@ async def decline_invitation(
     )
     db.add(notification)
 
-    db.commit()
+    await db.commit()
 
     logger.info(
         "Match invitation declined", match_id=match.id, opponent_id=current_user.id
@@ -409,7 +425,7 @@ async def decline_invitation(
 async def add_player_to_team(
     match_id: str,
     player_data: dict,  # {user_id?: str, guest_name?: str, role?: str}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Add a player to the captain's own team.
@@ -417,7 +433,8 @@ async def add_player_to_team(
     Body: {"user_id": "uuid"} for app users OR {"guest_name": "Player Name"} for guests.
     Optional: {"role": "batsman|bowler|allrounder|wicketkeeper"}
     """
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -452,11 +469,12 @@ async def add_player_to_team(
         )
 
     # Check max players
-    current_team_count = (
-        db.query(PlayersInMatch)
-        .filter(PlayersInMatch.match_id == match_id, PlayersInMatch.team == team)
-        .count()
+    count_result = await db.execute(
+        select(func.count()).where(
+            PlayersInMatch.match_id == match_id, PlayersInMatch.team == team
+        )
     )
+    current_team_count = count_result.scalar()
     max_players = (match.rules or {}).get("max_players_per_team", 11)
     if current_team_count >= max_players:
         raise HTTPException(
@@ -468,18 +486,18 @@ async def add_player_to_team(
 
     if user_id:
         # Check user exists
-        player_user = db.query(User).filter(User.id == user_id).first()
+        player_result = await db.execute(select(User).where(User.id == user_id))
+        player_user = player_result.scalars().first()
         if not player_user:
             raise HTTPException(status_code=404, detail="Player user not found")
 
         # Check if already in match
-        existing = (
-            db.query(PlayersInMatch)
-            .filter(
+        existing_result = await db.execute(
+            select(PlayersInMatch).where(
                 PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == user_id
             )
-            .first()
         )
+        existing = existing_result.scalars().first()
         if existing:
             raise HTTPException(
                 status_code=400, detail="Player is already in this match"
@@ -503,7 +521,7 @@ async def add_player_to_team(
     else:
         match.opponent_team_ready = False
 
-    db.commit()
+    await db.commit()
 
     logger.info(
         "Player added to team",
@@ -522,14 +540,15 @@ async def add_player_to_team(
 async def remove_player_from_team(
     match_id: str,
     player_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Remove a player from the captain's own team.
 
     player_id is the PlayersInMatch record ID (not the user ID).
     """
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -539,11 +558,12 @@ async def remove_player_from_team(
             status_code=403, detail="You are not a captain in this match"
         )
 
-    player_in_match = (
-        db.query(PlayersInMatch)
-        .filter(PlayersInMatch.id == player_id, PlayersInMatch.match_id == match_id)
-        .first()
+    pim_result = await db.execute(
+        select(PlayersInMatch).where(
+            PlayersInMatch.id == player_id, PlayersInMatch.match_id == match_id
+        )
     )
+    player_in_match = pim_result.scalars().first()
     if not player_in_match:
         raise HTTPException(status_code=404, detail="Player not found in this match")
 
@@ -558,7 +578,7 @@ async def remove_player_from_team(
             status_code=400, detail="Cannot remove the captain from the team"
         )
 
-    db.delete(player_in_match)
+    await db.delete(player_in_match)
 
     # Reset team readiness
     if team == "A":
@@ -566,7 +586,7 @@ async def remove_player_from_team(
     else:
         match.opponent_team_ready = False
 
-    db.commit()
+    await db.commit()
 
     logger.info(
         "Player removed from team",
@@ -582,14 +602,15 @@ async def remove_player_from_team(
 async def mark_team_ready(
     match_id: str,
     ready_data: dict = None,  # {ready: bool}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Mark a captain's team as ready (or unready).
 
     Body: {"ready": true} (defaults to true if omitted)
     """
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -602,11 +623,12 @@ async def mark_team_ready(
     is_ready = (ready_data or {}).get("ready", True)
 
     # Check minimum players
-    team_count = (
-        db.query(PlayersInMatch)
-        .filter(PlayersInMatch.match_id == match_id, PlayersInMatch.team == team)
-        .count()
+    count_result = await db.execute(
+        select(func.count()).where(
+            PlayersInMatch.match_id == match_id, PlayersInMatch.team == team
+        )
     )
+    team_count = count_result.scalar()
     if is_ready and team_count < match.min_players_per_team:
         raise HTTPException(
             status_code=400,
@@ -626,8 +648,8 @@ async def mark_team_ready(
         # One team became unready
         match.status = "accepted"
 
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     logger.info(
         "Team readiness updated",
@@ -643,15 +665,21 @@ async def mark_team_ready(
 @router.get("/{match_id}/teams", response_model=dict)
 async def get_teams(
     match_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Get both teams' player lists for a match."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
-    players = db.query(PlayersInMatch).filter(PlayersInMatch.match_id == match_id).all()
+    players_result = await db.execute(
+        select(PlayersInMatch)
+        .where(PlayersInMatch.match_id == match_id)
+        .options(selectinload(PlayersInMatch.user))
+    )
+    players = players_result.scalars().all()
 
     team_a = []
     team_b = []
@@ -703,14 +731,15 @@ async def get_teams(
 async def propose_rules(
     match_id: str,
     rules_data: dict,  # {rules: {...}}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Propose rules for the match. Other captain must approve or counter.
 
     Body: {"rules": {overs_limit, powerplay_overs, ...}}
     """
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -757,8 +786,8 @@ async def propose_rules(
         )
         db.add(notification)
 
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     logger.info(
         "Rules proposed",
@@ -772,11 +801,12 @@ async def propose_rules(
 @router.post("/{match_id}/rules/approve", response_model=MatchResponse)
 async def approve_rules(
     match_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Approve the currently proposed rules."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -817,8 +847,8 @@ async def approve_rules(
                 )
                 db.add(notification)
 
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     logger.info(
         "Rules approved",
@@ -834,7 +864,7 @@ async def approve_rules(
 async def counter_rules(
     match_id: str,
     rules_data: dict,  # {rules: {...}}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Counter-propose different rules. Same as propose but from the other captain."""
@@ -845,11 +875,12 @@ async def counter_rules(
 @router.get("/{match_id}/rules", response_model=dict)
 async def get_rules(
     match_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Get current rules and approval status."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
@@ -873,11 +904,12 @@ async def get_rules(
 async def record_toss(
     match_id: str,
     toss_data: TossUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Record toss result for a match."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
 
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -904,8 +936,8 @@ async def record_toss(
     match.toss_decision = toss_data.toss_decision.value
     match.status = "toss_done"
 
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     logger.info(
         "Toss recorded",
@@ -921,11 +953,12 @@ async def record_toss(
 async def update_match_status(
     match_id: str,
     new_status: MatchStatus,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Update match status (with validation)."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
 
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -950,8 +983,8 @@ async def update_match_status(
 
     match.status = new_status.value
 
-    db.commit()
-    db.refresh(match)
+    await db.commit()
+    await db.refresh(match)
 
     logger.info(
         "Match status updated",
@@ -971,11 +1004,12 @@ async def update_match_status(
 @router.delete("/{match_id}", response_model=dict)
 async def cancel_match(
     match_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Cancel a match. Either captain can cancel in dual_captain mode."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
 
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -1018,7 +1052,7 @@ async def cancel_match(
             )
             db.add(notification)
 
-    db.commit()
+    await db.commit()
 
     logger.info("Match cancelled", match_id=match_id, user_id=current_user.id)
 
@@ -1034,14 +1068,15 @@ async def cancel_match(
 async def add_player_to_match(
     match_id: str,
     player_data: dict,  # {user_id: str, team: str, role: str}
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_host_role),
 ):
     """Add a player to a match (legacy endpoint for quick matches).
 
     For dual_captain matches, use POST /matches/{id}/team/players instead.
     """
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
 
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -1058,15 +1093,17 @@ async def add_player_to_match(
     if not user_id or team not in ["A", "B"]:
         raise HTTPException(status_code=400, detail="Invalid player data")
 
-    player_user = db.query(User).filter(User.id == user_id).first()
+    player_result = await db.execute(select(User).where(User.id == user_id))
+    player_user = player_result.scalars().first()
     if not player_user:
         raise HTTPException(status_code=404, detail="Player user not found")
 
-    existing_player = (
-        db.query(PlayersInMatch)
-        .filter(PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == user_id)
-        .first()
+    existing_result = await db.execute(
+        select(PlayersInMatch).where(
+            PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == user_id
+        )
     )
+    existing_player = existing_result.scalars().first()
     if existing_player:
         raise HTTPException(status_code=400, detail="Player is already in this match")
 
@@ -1080,7 +1117,7 @@ async def add_player_to_match(
     )
 
     db.add(player_in_match)
-    db.commit()
+    await db.commit()
 
     logger.info(
         "Player added to match (legacy)",
@@ -1097,11 +1134,12 @@ async def add_player_to_match(
 async def remove_player_from_match(
     match_id: str,
     player_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_host_role),
 ):
     """Remove a player from a match (legacy endpoint)."""
-    match = db.query(Match).filter(Match.id == match_id).first()
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
 
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -1111,18 +1149,17 @@ async def remove_player_from_match(
             status_code=403, detail="Only the match host can remove players"
         )
 
-    player_in_match = (
-        db.query(PlayersInMatch)
-        .filter(
+    pim_result = await db.execute(
+        select(PlayersInMatch).where(
             PlayersInMatch.match_id == match_id, PlayersInMatch.user_id == player_id
         )
-        .first()
     )
+    player_in_match = pim_result.scalars().first()
     if not player_in_match:
         raise HTTPException(status_code=404, detail="Player not found in this match")
 
-    db.delete(player_in_match)
-    db.commit()
+    await db.delete(player_in_match)
+    await db.commit()
 
     logger.info(
         "Player removed from match (legacy)",
