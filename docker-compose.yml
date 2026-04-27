@@ -1,10 +1,16 @@
-# Docker Compose Setup for inSwing Development
-# PostgreSQL + Redis for local development
+# inSwing — Full-stack local development
+# Services: postgres · redis · backend · frontend
+# Usage:
+#   docker compose up -d          → start everything
+#   docker compose up -d postgres redis   → infra only
+#   docker compose logs -f backend        → tail backend logs
+#   docker compose down -v                → destroy (including volumes)
 
 version: '3.8'
 
 services:
-  # PostgreSQL 16 Database
+
+  # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: inswing-postgres
@@ -25,7 +31,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis 7.0 Cache
+  # ── Redis 7.0 ────────────────────────────────────────────────────────────────
   redis:
     image: redis:7.0-alpine
     container_name: inswing-redis
@@ -37,6 +43,56 @@ services:
     command: redis-server --appendonly yes
     networks:
       - inswing-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI Backend ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: inswing-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.docker
+    ports:
+      - "8000:8000"
+    networks:
+      - inswing-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    # Run migrations then start server
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+
+  # ── React Frontend ────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Backend API URL as seen from the browser (host machine)
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+    container_name: inswing-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - inswing-network
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
