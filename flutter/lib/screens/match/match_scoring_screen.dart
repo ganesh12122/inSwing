@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inswing/models/match_model.dart';
 import 'package:inswing/providers/match_scoring_provider.dart';
+import 'package:inswing/services/api_service.dart';
 import 'package:inswing/theme/app_theme.dart';
 import 'package:inswing/utils/constants.dart';
 import 'package:inswing/widgets/common/loading_widget.dart';
@@ -22,6 +25,10 @@ class MatchScoringScreen extends ConsumerStatefulWidget {
 }
 
 class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
+  List<Ball> _currentOverBalls = [];
+  bool _isLoadingCurrentOver = false;
+  String? _lastLoadedSnapshot;
+
   @override
   void initState() {
     super.initState();
@@ -58,7 +65,10 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
           onRetry: () =>
               ref.read(matchScoringProvider.notifier).loadMatch(widget.matchId),
         ),
-        data: (match) => _buildScoringInterface(match, theme, isWide: isWide),
+        data: (match) {
+          _scheduleCurrentOverRefresh(match);
+          return _buildScoringInterface(match, theme, isWide: isWide);
+        },
       ),
     );
   }
@@ -92,7 +102,7 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
           overs: overs,
         ),
         const SizedBox(height: 12),
-        _buildOverStrip(theme),
+        _buildOverStrip(theme, overBallCount: _currentOverBalls.length),
         const SizedBox(height: 12),
         _buildMatchMetaCard(theme, battingTeamName, totalRuns, wickets, overs),
       ],
@@ -228,7 +238,7 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     );
   }
 
-  Widget _buildOverStrip(ThemeData theme) {
+  Widget _buildOverStrip(ThemeData theme, {required int overBallCount}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -239,19 +249,51 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('This Over', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: const [
-              _OverBall(value: '0'),
-              _OverBall(value: '1'),
-              _OverBall(value: '4', isBoundary: true),
-              _OverBall(value: 'W', isWicket: true),
-              _OverBall(value: '2'),
-              _OverBall(value: '1'),
+          Row(
+            children: [
+              Text('This Over', style: theme.textTheme.titleSmall),
+              const SizedBox(width: 8),
+              if (_isLoadingCurrentOver)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Text(
+                  '$overBallCount ball${overBallCount == 1 ? '' : 's'}',
+                  style: theme.textTheme.bodySmall,
+                ),
             ],
+          ),
+          const SizedBox(height: 10),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: _currentOverBalls.isEmpty
+                ? Text(
+                    'No balls recorded in this over yet',
+                    key: const ValueKey('empty-over-strip'),
+                    style: theme.textTheme.bodySmall,
+                  )
+                : Wrap(
+                    key: ValueKey(
+                        'over-strip-${_currentOverBalls.length}-${_lastLoadedSnapshot ?? ''}'),
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _currentOverBalls.map((ball) {
+                      final overValue = _formatBallForOverStrip(ball);
+                      final totalRuns =
+                          ball.totalRuns ?? (ball.runsOffBat + ball.extrasRuns);
+                      return _OverBall(
+                        value: overValue,
+                        isWicket:
+                            ball.isWicket == true || ball.wicketType != null,
+                        isBoundary: totalRuns >= 4,
+                      );
+                    }).toList(),
+                  ),
           ),
         ],
       ),
@@ -512,19 +554,21 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
   }
 
   // Scoring methods
-  void _recordRun(int runs) {
-    ref.read(matchScoringProvider.notifier).recordBall(
+  Future<void> _recordRun(int runs) async {
+    await ref.read(matchScoringProvider.notifier).recordBall(
           matchId: widget.matchId,
           runs: runs,
           isExtra: false,
         );
+    await _refreshCurrentOverFromLatestMatch(force: true);
   }
 
-  void _recordExtra(String type) {
-    ref.read(matchScoringProvider.notifier).recordExtra(
+  Future<void> _recordExtra(String type) async {
+    await ref.read(matchScoringProvider.notifier).recordExtra(
           matchId: widget.matchId,
           type: type,
         );
+    await _refreshCurrentOverFromLatestMatch(force: true);
   }
 
   void _showWicketDialog(BuildContext context) {
@@ -576,11 +620,12 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     );
   }
 
-  void _recordWicket(String type) {
-    ref.read(matchScoringProvider.notifier).recordWicket(
+  Future<void> _recordWicket(String type) async {
+    await ref.read(matchScoringProvider.notifier).recordWicket(
           matchId: widget.matchId,
           type: type,
         );
+    await _refreshCurrentOverFromLatestMatch(force: true);
   }
 
   void _showUndoDialog(BuildContext context) {
@@ -595,11 +640,12 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ref
+              await ref
                   .read(matchScoringProvider.notifier)
                   .undoLastBall(widget.matchId);
+              await _refreshCurrentOverFromLatestMatch(force: true);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Undo'),
@@ -627,11 +673,12 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ref
+              await ref
                   .read(matchScoringProvider.notifier)
                   .switchInnings(widget.matchId);
+              await _refreshCurrentOverFromLatestMatch(force: true);
             },
             child: const Text('Switch'),
           ),
@@ -645,6 +692,104 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     final fullOvers = overs.floor();
     final balls = ((overs - fullOvers) * 6).round();
     return '$fullOvers.$balls';
+  }
+
+  void _scheduleCurrentOverRefresh(Match match) {
+    final snapshot =
+        '${match.currentInningsId}|${match.battingTeam}|${match.teamAOvers}|${match.teamBOvers}|${match.updatedAt.millisecondsSinceEpoch}';
+
+    if (_lastLoadedSnapshot == snapshot || _isLoadingCurrentOver) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadCurrentOverBalls(match, snapshot: snapshot);
+    });
+  }
+
+  Future<void> _refreshCurrentOverFromLatestMatch({bool force = false}) async {
+    final latestMatch = ref.read(matchScoringProvider).value;
+    if (latestMatch == null) return;
+    await _loadCurrentOverBalls(latestMatch, force: force);
+  }
+
+  Future<void> _loadCurrentOverBalls(
+    Match match, {
+    String? snapshot,
+    bool force = false,
+  }) async {
+    final inningsId = match.currentInningsId;
+    if (inningsId == null || inningsId.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _currentOverBalls = [];
+        _isLoadingCurrentOver = false;
+        _lastLoadedSnapshot = snapshot ?? _lastLoadedSnapshot;
+      });
+      return;
+    }
+
+    if (!force && _isLoadingCurrentOver) return;
+
+    if (mounted) {
+      setState(() => _isLoadingCurrentOver = true);
+    }
+
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final balls = await apiService.getInningsBalls(match.id, inningsId);
+
+      balls.sort((a, b) {
+        final overCompare = a.overNumber.compareTo(b.overNumber);
+        if (overCompare != 0) return overCompare;
+        return a.ballInOver.compareTo(b.ballInOver);
+      });
+
+      final latestOver = balls.isNotEmpty
+          ? balls.map((b) => b.overNumber).reduce(math.max)
+          : null;
+
+      final currentOver = latestOver == null
+          ? <Ball>[]
+          : balls.where((b) => b.overNumber == latestOver).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _currentOverBalls = currentOver;
+        _lastLoadedSnapshot = snapshot ??
+            '${match.currentInningsId}|${match.battingTeam}|${match.teamAOvers}|${match.teamBOvers}|${match.updatedAt.millisecondsSinceEpoch}';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentOverBalls = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCurrentOver = false);
+      }
+    }
+  }
+
+  String _formatBallForOverStrip(Ball ball) {
+    if (ball.isWicket == true || ball.wicketType != null) return 'W';
+
+    final extrasType = ball.extrasType;
+    final totalRuns = ball.totalRuns ?? (ball.runsOffBat + ball.extrasRuns);
+
+    switch (extrasType) {
+      case 'wide':
+        return totalRuns > 1 ? 'Wd$totalRuns' : 'Wd';
+      case 'no_ball':
+        return totalRuns > 1 ? 'Nb$totalRuns' : 'Nb';
+      case 'bye':
+        return 'B${ball.extrasRuns}';
+      case 'leg_bye':
+        return 'Lb${ball.extrasRuns}';
+      default:
+        return '$totalRuns';
+    }
   }
 }
 

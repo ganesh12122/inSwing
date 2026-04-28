@@ -285,44 +285,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildHeroStrip() {
-    return Container(
-      margin:
-          const EdgeInsets.fromLTRB(kDefaultPadding, 10, kDefaultPadding, 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0C4DA2), Color(0xFF1566CD), Color(0xFF0E9A77)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.sports_cricket, color: Colors.white, size: 30),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Professional Live Scoring',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Fast entry, clear scoreboards, and match-ready control for every level of cricket.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.92),
-                      ),
-                ),
-              ],
-            ),
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 420),
+      tween: Tween<double>(begin: 0, end: 1),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, (1 - value) * 12),
+          child: Opacity(
+            opacity: value,
+            child: child,
           ),
-        ],
+        );
+      },
+      child: Container(
+        margin:
+            const EdgeInsets.fromLTRB(kDefaultPadding, 10, kDefaultPadding, 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0C4DA2), Color(0xFF1566CD), Color(0xFF0E9A77)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.sports_cricket, color: Colors.white, size: 30),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Professional Live Scoring',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Fast entry, clear scoreboards, and match-ready control for every level of cricket.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.92),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -395,19 +409,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         itemCount: matches.length,
         itemBuilder: (context, index) {
           final match = matches[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: MatchCardWidget(
-              match: match,
-              onTap: () {
-                // Dual captain matches in progress → go to lobby
-                if (match.isDualCaptain &&
-                    _isDualCaptainInProgress(match.status)) {
-                  context.push('/match/${match.id}/lobby');
-                } else {
-                  context.push('/match/${match.id}');
-                }
-              },
+          return TweenAnimationBuilder<double>(
+            duration: Duration(milliseconds: 220 + (index * 45)),
+            tween: Tween<double>(begin: 0, end: 1),
+            curve: Curves.easeOut,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, (1 - value) * 10),
+                child: Opacity(opacity: value, child: child),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: MatchCardWidget(
+                match: match,
+                onTap: () {
+                  // Dual captain matches in progress → go to lobby
+                  if (match.isDualCaptain &&
+                      _isDualCaptainInProgress(match.status)) {
+                    context.push('/match/${match.id}/lobby');
+                  } else {
+                    context.push('/match/${match.id}');
+                  }
+                },
+              ),
             ),
           );
         },
