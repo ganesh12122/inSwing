@@ -22,12 +22,12 @@ class Profile(Base):
 
     # Cricket-specific attributes
     batting_style = Column(
-        Enum("right-handed", "left-handed", name="batting_style"), nullable=True
+        Enum("right-handed", "left-handed", name="batting_style", native_enum=False), nullable=True
     )
     bowling_style = Column(
-        Enum("fast", "spin", "pace", "none", name="bowling_style"), nullable=True
+        Enum("fast", "spin", "pace", "none", name="bowling_style", native_enum=False), nullable=True
     )
-    dominant_hand = Column(Enum("right", "left", name="dominant_hand"), nullable=True)
+    dominant_hand = Column(Enum("right", "left", name="dominant_hand", native_enum=False), nullable=True)
 
     # Denormalized statistics for quick access
     total_matches = Column(Integer, default=0, nullable=False)

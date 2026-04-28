@@ -29,7 +29,7 @@ class MatchEvent(Base):
             "comment",
             "innings_change",
             "toss",
-            name="event_type",
+            name="event_type", native_enum=False,
         ),
         nullable=False,
         index=True,

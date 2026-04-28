@@ -31,7 +31,7 @@ class PlayersInMatch(Base):
     )
 
     # Player role in this specific match
-    team = Column(Enum("A", "B", name="match_team"), nullable=False, index=True)
+    team = Column(Enum("A", "B", name="match_team", native_enum=False), nullable=False, index=True)
     role = Column(
         Enum(
             "captain",
@@ -39,7 +39,7 @@ class PlayersInMatch(Base):
             "bowler",
             "allrounder",
             "wicketkeeper",
-            name="player_role_v2",
+            name="player_role_v2", native_enum=False,
         ),
         default="batsman",
         nullable=False,

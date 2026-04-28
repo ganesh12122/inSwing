@@ -58,7 +58,7 @@ class Match(Base):
             "dual_captain",
             "friendly",
             "tournament",
-            name="match_type_v2",
+            name="match_type_v2", native_enum=False,
         ),
         default="quick",
         nullable=False,
@@ -90,7 +90,7 @@ class Match(Base):
             "finished",  # Match completed
             "cancelled",  # Match cancelled
             "declined",  # Invitation declined by opponent
-            name="match_status_v2",
+            name="match_status_v2", native_enum=False,
         ),
         default="created",
         nullable=False,
@@ -139,8 +139,8 @@ class Match(Base):
     result = Column(JSON, nullable=True)
 
     # === TOSS ===
-    toss_winner = Column(Enum("A", "B", name="toss_winner"), nullable=True)
-    toss_decision = Column(Enum("bat", "bowl", name="toss_decision"), nullable=True)
+    toss_winner = Column(Enum("A", "B", name="toss_winner", native_enum=False), nullable=True)
+    toss_decision = Column(Enum("bat", "bowl", name="toss_decision", native_enum=False), nullable=True)
 
     # === TIMESTAMPS ===
     created_at = Column(

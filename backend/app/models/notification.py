@@ -31,7 +31,7 @@ class Notification(Base):
             "match_reminder",
             "system",
             "achievement",
-            name="notification_type",
+            name="notification_type", native_enum=False,
         ),
         nullable=False,
         index=True,
@@ -42,12 +42,12 @@ class Notification(Base):
 
     # Priority and status
     priority = Column(
-        Enum("low", "medium", "high", name="notification_priority"),
+        Enum("low", "medium", "high", name="notification_priority", native_enum=False),
         default="medium",
         nullable=False,
     )
     status = Column(
-        Enum("unread", "read", name="notification_status"),
+        Enum("unread", "read", name="notification_status", native_enum=False),
         default="unread",
         nullable=False,
         index=True,

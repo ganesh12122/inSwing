@@ -42,7 +42,7 @@ def upgrade() -> None:
         sa.Column("bio", sa.Text(), nullable=True),
         sa.Column(
             "role",
-            sa.Enum("player", "admin", name="user_role"),
+            sa.Enum("player", "admin", name="user_role", native_enum=False),
             default="player",
             nullable=False,
         ),
@@ -76,17 +76,17 @@ def upgrade() -> None:
         ),
         sa.Column(
             "batting_style",
-            sa.Enum("right-handed", "left-handed", name="batting_style"),
+            sa.Enum("right-handed", "left-handed", name="batting_style", native_enum=False),
             nullable=True,
         ),
         sa.Column(
             "bowling_style",
-            sa.Enum("fast", "spin", "pace", "none", name="bowling_style"),
+            sa.Enum("fast", "spin", "pace", "none", name="bowling_style", native_enum=False),
             nullable=True,
         ),
         sa.Column(
             "dominant_hand",
-            sa.Enum("right", "left", name="dominant_hand"),
+            sa.Enum("right", "left", name="dominant_hand", native_enum=False),
             nullable=True,
         ),
         sa.Column("total_matches", sa.Integer(), default=0, nullable=False),
@@ -128,7 +128,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "match_type",
-            sa.Enum("quick", "friendly", "tournament", name="match_type"),
+            sa.Enum("quick", "friendly", "tournament", name="match_type", native_enum=False),
             default="quick",
             nullable=False,
         ),
@@ -148,7 +148,7 @@ def upgrade() -> None:
                 "live",
                 "finished",
                 "cancelled",
-                name="match_status",
+                name="match_status", native_enum=False,
             ),
             default="created",
             nullable=False,
@@ -156,9 +156,9 @@ def upgrade() -> None:
         ),
         sa.Column("rules", sa.JSON(), nullable=False),
         sa.Column("result", sa.JSON(), nullable=True),
-        sa.Column("toss_winner", sa.Enum("A", "B", name="toss_winner"), nullable=True),
+        sa.Column("toss_winner", sa.Enum("A", "B", name="toss_winner", native_enum=False), nullable=True),
         sa.Column(
-            "toss_decision", sa.Enum("bat", "bowl", name="toss_decision"), nullable=True
+            "toss_decision", sa.Enum("bat", "bowl", name="toss_decision", native_enum=False), nullable=True
         ),
         sa.Column(
             "created_at",
@@ -188,7 +188,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column(
-            "batting_team", sa.Enum("A", "B", name="batting_team"), nullable=False
+            "batting_team", sa.Enum("A", "B", name="batting_team", native_enum=False), nullable=False
         ),
         sa.Column("overs_allocated", sa.Integer(), nullable=False, default=20),
         sa.Column("runs", sa.Integer(), default=0, nullable=False),
@@ -251,7 +251,7 @@ def upgrade() -> None:
         sa.Column("runs_off_bat", sa.Integer(), default=0, nullable=False),
         sa.Column(
             "extras_type",
-            sa.Enum("wide", "no_ball", "bye", "legbye", name="extras_type"),
+            sa.Enum("wide", "no_ball", "bye", "legbye", name="extras_type", native_enum=False),
             nullable=True,
         ),
         sa.Column("extras_runs", sa.Integer(), default=0, nullable=False),
@@ -264,7 +264,7 @@ def upgrade() -> None:
                 "lbw",
                 "stumped",
                 "hit_wicket",
-                name="wicket_type",
+                name="wicket_type", native_enum=False,
             ),
             nullable=True,
         ),
@@ -298,12 +298,12 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column(
-            "team", sa.Enum("A", "B", name="match_team"), nullable=False, index=True
+            "team", sa.Enum("A", "B", name="match_team", native_enum=False), nullable=False, index=True
         ),
         sa.Column(
             "role",
             sa.Enum(
-                "batsman", "bowler", "allrounder", "wicketkeeper", name="player_role"
+                "batsman", "bowler", "allrounder", "wicketkeeper", name="player_role", native_enum=False
             ),
             default="batsman",
             nullable=False,
@@ -337,7 +337,7 @@ def upgrade() -> None:
                 "comment",
                 "innings_change",
                 "toss",
-                name="event_type",
+                name="event_type", native_enum=False,
             ),
             nullable=False,
             index=True,
@@ -374,7 +374,7 @@ def upgrade() -> None:
                 "match_reminder",
                 "system",
                 "achievement",
-                name="notification_type_v2",
+                name="notification_type_v2", native_enum=False,
             ),
             nullable=False,
             index=True,
@@ -382,13 +382,13 @@ def upgrade() -> None:
         sa.Column("data", sa.JSON(), nullable=True),
         sa.Column(
             "priority",
-            sa.Enum("low", "medium", "high", name="notification_priority"),
+            sa.Enum("low", "medium", "high", name="notification_priority", native_enum=False),
             default="medium",
             nullable=False,
         ),
         sa.Column(
             "status",
-            sa.Enum("unread", "read", name="notification_status"),
+            sa.Enum("unread", "read", name="notification_status", native_enum=False),
             default="unread",
             nullable=False,
             index=True,

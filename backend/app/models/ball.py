@@ -46,7 +46,7 @@ class Ball(Base):
     # Scoring information
     runs_off_bat = Column(Integer, default=0, nullable=False)
     extras_type = Column(
-        Enum("wide", "no_ball", "bye", "legbye", name="extras_type"), nullable=True
+        Enum("wide", "no_ball", "bye", "legbye", name="extras_type", native_enum=False), nullable=True
     )
     extras_runs = Column(Integer, default=0, nullable=False)
 
@@ -59,7 +59,7 @@ class Ball(Base):
             "lbw",
             "stumped",
             "hit_wicket",
-            name="wicket_type",
+            name="wicket_type", native_enum=False,
         ),
         nullable=True,
     )

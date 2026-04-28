@@ -30,7 +30,7 @@ class Innings(Base):
     )
 
     # Innings information
-    batting_team = Column(Enum("A", "B", name="batting_team"), nullable=False)
+    batting_team = Column(Enum("A", "B", name="batting_team", native_enum=False), nullable=False)
     overs_allocated = Column(Integer, nullable=False, default=20)
 
     # Denormalized statistics for quick access

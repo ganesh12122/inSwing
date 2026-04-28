@@ -29,6 +29,7 @@ def upgrade() -> None:
         "friendly",
         "tournament",
         name="match_type_v2",
+        native_enum=False,
     )
     match_type_v2.create(op.get_bind(), checkfirst=True)
 
@@ -45,6 +46,7 @@ def upgrade() -> None:
         "cancelled",
         "declined",
         name="match_status_v2",
+        native_enum=False,
     )
     match_status_v2.create(op.get_bind(), checkfirst=True)
 
@@ -55,6 +57,7 @@ def upgrade() -> None:
         "allrounder",
         "wicketkeeper",
         name="player_role_v2",
+        native_enum=False,
     )
     player_role_v2.create(op.get_bind(), checkfirst=True)
 
@@ -151,7 +154,7 @@ def upgrade() -> None:
     # Step 1: Add temporary column with new enum
     op.add_column("matches", sa.Column("match_type_new", match_type_v2, nullable=True))
     # Step 2: Copy data (quick→quick, friendly→friendly, tournament→tournament)
-    op.execute("UPDATE matches SET match_type_new = match_type::text::match_type_v2")
+    op.execute("UPDATE matches SET match_type_new = match_type")
     # Step 3: Drop old column and rename new
     op.drop_column("matches", "match_type")
     op.alter_column(
@@ -160,7 +163,7 @@ def upgrade() -> None:
 
     # Migrate status from old enum to new enum
     op.add_column("matches", sa.Column("status_new", match_status_v2, nullable=True))
-    op.execute("UPDATE matches SET status_new = status::text::match_status_v2")
+    op.execute("UPDATE matches SET status_new = status")
     op.drop_column("matches", "status")
     op.alter_column("matches", "status_new", new_column_name="status", nullable=False)
     op.create_index("ix_matches_status", "matches", ["status"])
@@ -199,7 +202,7 @@ def upgrade() -> None:
     op.add_column(
         "players_in_match", sa.Column("role_new", player_role_v2, nullable=True)
     )
-    op.execute("UPDATE players_in_match SET role_new = role::text::player_role_v2")
+    op.execute("UPDATE players_in_match SET role_new = role")
     op.drop_column("players_in_match", "role")
     op.alter_column(
         "players_in_match",
@@ -209,28 +212,36 @@ def upgrade() -> None:
         server_default="batsman",
     )
 
-    # ========================================================================
-    # 4. Drop old enum types (cleanup)
-    # ========================================================================
-    op.execute("DROP TYPE IF EXISTS match_type")
-    op.execute("DROP TYPE IF EXISTS match_status")
-    op.execute("DROP TYPE IF EXISTS player_role")
+    # Note: native_enum=False means no actual PostgreSQL ENUM types exist to drop
 
 
 def downgrade() -> None:
     """Reverse the dual captain migration."""
 
     # Recreate old enums
-    old_match_type = sa.Enum("quick", "friendly", "tournament", name="match_type")
+    old_match_type = sa.Enum(
+        "quick", "friendly", "tournament", name="match_type", native_enum=False
+    )
     old_match_type.create(op.get_bind(), checkfirst=True)
 
     old_match_status = sa.Enum(
-        "created", "toss_done", "live", "finished", "cancelled", name="match_status"
+        "created",
+        "toss_done",
+        "live",
+        "finished",
+        "cancelled",
+        name="match_status",
+        native_enum=False,
     )
     old_match_status.create(op.get_bind(), checkfirst=True)
 
     old_player_role = sa.Enum(
-        "batsman", "bowler", "allrounder", "wicketkeeper", name="player_role"
+        "batsman",
+        "bowler",
+        "allrounder",
+        "wicketkeeper",
+        name="player_role",
+        native_enum=False,
     )
     old_player_role.create(op.get_bind(), checkfirst=True)
 
@@ -242,8 +253,8 @@ def downgrade() -> None:
         """
         UPDATE players_in_match
         SET role_old = CASE
-            WHEN role::text = 'captain' THEN 'allrounder'::player_role
-            ELSE role::text::player_role
+            WHEN role = 'captain' THEN 'allrounder'
+            ELSE role
         END
     """
     )
@@ -272,9 +283,9 @@ def downgrade() -> None:
         """
         UPDATE matches
         SET status_old = CASE
-            WHEN status::text IN ('created', 'toss_done', 'live', 'finished', 'cancelled')
-            THEN status::text::match_status
-            ELSE 'created'::match_status
+            WHEN status IN ('created', 'toss_done', 'live', 'finished', 'cancelled')
+            THEN status
+            ELSE 'created'
         END
     """
     )
@@ -287,9 +298,9 @@ def downgrade() -> None:
         """
         UPDATE matches
         SET match_type_old = CASE
-            WHEN match_type::text IN ('quick', 'friendly', 'tournament')
-            THEN match_type::text::match_type
-            ELSE 'quick'::match_type
+            WHEN match_type IN ('quick', 'friendly', 'tournament')
+            THEN match_type
+            ELSE 'quick'
         END
     """
     )
@@ -317,7 +328,4 @@ def downgrade() -> None:
     op.drop_index("ix_matches_opponent_captain_id", "matches")
     op.drop_column("matches", "opponent_captain_id")
 
-    # Drop new enum types
-    op.execute("DROP TYPE IF EXISTS match_type_v2")
-    op.execute("DROP TYPE IF EXISTS match_status_v2")
-    op.execute("DROP TYPE IF EXISTS player_role_v2")
+    # Note: native_enum=False means no actual PostgreSQL ENUM types exist to drop
