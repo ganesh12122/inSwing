@@ -7,7 +7,6 @@
 #   docker compose down -v                → destroy (including volumes)
 
 version: '3.8'
-
 services:
 
   # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
@@ -20,7 +19,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-inswing_dev_password}
       POSTGRES_DB: inswing
     ports:
-      - "5432:5432"
+        - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -59,7 +58,7 @@ services:
     env_file:
       - ./backend/.env.docker
     ports:
-      - "8000:8000"
+        - "18000:8000"
     networks:
       - inswing-network
     depends_on:
@@ -73,10 +72,8 @@ services:
       timeout: 10s
       start_period: 40s
       retries: 3
-    # Stamp MySQL-only migrations as done (001, 002 are MySQL-specific),
-    # then upgrade through the PostgreSQL migrations (003+)
     command: >
-      sh -c "alembic stamp 002_comprehensive_schema && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+      sh -c "python scripts/bootstrap_db.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
 
   # ── React Frontend ────────────────────────────────────────────────────────────
   frontend:
@@ -85,7 +82,7 @@ services:
       dockerfile: Dockerfile
       args:
         # Backend API URL as seen from the browser (host machine)
-        VITE_API_BASE_URL: http://localhost:8000/api/v1
+          VITE_API_BASE_URL: http://localhost:18000/api/v1
     container_name: inswing-frontend
     restart: unless-stopped
     ports:
