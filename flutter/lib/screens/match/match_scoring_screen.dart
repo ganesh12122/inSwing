@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inswing/models/match_model.dart';
 import 'package:inswing/providers/match_scoring_provider.dart';
+import 'package:inswing/theme/app_theme.dart';
 import 'package:inswing/utils/constants.dart';
 import 'package:inswing/widgets/common/loading_widget.dart';
 import 'package:inswing/widgets/common/error_widget.dart' as widgets;
@@ -32,10 +33,11 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scoringState = ref.watch(matchScoringProvider);
+    final isWide = MediaQuery.sizeOf(context).width >= 960;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Match Scoring'),
+        title: const Text('Live Scoring Console'),
         actions: [
           if (widget.isHost) ...[
             IconButton(
@@ -56,185 +58,354 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
           onRetry: () =>
               ref.read(matchScoringProvider.notifier).loadMatch(widget.matchId),
         ),
-        data: (match) => _buildScoringInterface(match, theme),
+        data: (match) => _buildScoringInterface(match, theme, isWide: isWide),
       ),
     );
   }
 
-  Widget _buildScoringInterface(Match match, ThemeData theme) {
+  Widget _buildScoringInterface(Match match, ThemeData theme,
+      {required bool isWide}) {
     // Get current batting team info from match
     final teamABatting = match.battingTeam == 'A';
     final teamBBatting = match.battingTeam == 'B';
+    final battingTeamName =
+        match.battingTeam == 'A' ? match.teamAName : (match.teamBName ?? 'TBD');
+    final totalRuns = match.battingTeam == 'A'
+        ? (match.teamARuns ?? 0)
+        : (match.teamBRuns ?? 0);
+    final wickets = match.battingTeam == 'A'
+        ? (match.teamAWickets ?? 0)
+        : (match.teamBWickets ?? 0);
+    final overs = match.battingTeam == 'A'
+        ? (match.teamAOvers ?? 0.0)
+        : (match.teamBOvers ?? 0.0);
+    final runRate = overs > 0 ? totalRuns / overs : 0.0;
 
-    return Column(
+    final scorePanel = Column(
       children: [
-        // Match summary header
-        Container(
-          color: theme.colorScheme.primaryContainer,
-          padding: const EdgeInsets.all(kDefaultPadding),
-          child: Column(
-            children: [
-              // Team scores
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+        _buildScoreHeader(
+          match,
+          teamABatting: teamABatting,
+          teamBBatting: teamBBatting,
+          battingTeamName: battingTeamName,
+          runRate: runRate,
+          overs: overs,
+        ),
+        const SizedBox(height: 12),
+        _buildOverStrip(theme),
+        const SizedBox(height: 12),
+        _buildMatchMetaCard(theme, battingTeamName, totalRuns, wickets, overs),
+      ],
+    );
+
+    final controlsPanel = _buildControlDeck(theme, isWide: isWide);
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF5F8FD), Color(0xFFEFF5FC)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(kDefaultPadding),
+        child: isWide
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTeamScore(
-                    teamName: match.teamAName,
-                    score: '${match.teamARuns ?? 0}',
-                    wickets: match.teamAWickets ?? 0,
-                    overs: _formatOvers(match.teamAOvers ?? 0.0),
-                    isBatting: teamABatting,
-                    theme: theme,
-                  ),
-                  Text(
-                    'VS',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                      flex: 5, child: SingleChildScrollView(child: scorePanel)),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 4, child: controlsPanel),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: scorePanel,
                     ),
                   ),
-                  _buildTeamScore(
-                    teamName: match.teamBName ?? 'TBD',
-                    score: '${match.teamBRuns ?? 0}',
-                    wickets: match.teamBWickets ?? 0,
-                    overs: _formatOvers(match.teamBOvers ?? 0.0),
-                    isBatting: teamBBatting,
-                    theme: theme,
-                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(height: 360, child: controlsPanel),
                 ],
               ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 16),
-
-              // Current over details
+  Widget _buildScoreHeader(
+    Match match, {
+    required bool teamABatting,
+    required bool teamBBatting,
+    required String battingTeamName,
+    required double runRate,
+    required double overs,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B4B9A), Color(0xFF1A6ED1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildTeamScore(
+                teamName: match.teamAName,
+                score: '${match.teamARuns ?? 0}',
+                wickets: match.teamAWickets ?? 0,
+                overs: _formatOvers(match.teamAOvers ?? 0.0),
+                isBatting: teamABatting,
+                darkMode: true,
+              ),
               Text(
-                'Current Innings: ${match.battingTeam == "A" ? match.teamAName : (match.teamBName ?? "TBD")}',
-                style: theme.textTheme.titleMedium,
+                'VS',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  const Text('Striker: Not set'),
-                  const Text('Non-striker: Not set'),
-                  const Text('Bowler: Not set'),
-                ],
+              _buildTeamScore(
+                teamName: match.teamBName ?? 'TBD',
+                score: '${match.teamBRuns ?? 0}',
+                wickets: match.teamBWickets ?? 0,
+                overs: _formatOvers(match.teamBOvers ?? 0.0),
+                isBatting: teamBBatting,
+                darkMode: true,
               ),
             ],
           ),
-        ),
-
-        const Divider(),
-
-        // Current over balls
-        Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: kDefaultPadding, vertical: 8),
-          child: Row(
+          const SizedBox(height: 14),
+          Row(
             children: [
-              Text('This Over:', style: theme.textTheme.titleSmall),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text('No balls recorded yet'),
-              ),
+              _buildHeaderPill('Batting', battingTeamName),
+              const SizedBox(width: 10),
+              _buildHeaderPill('Overs', _formatOvers(overs)),
+              const SizedBox(width: 10),
+              _buildHeaderPill('RR', runRate.toStringAsFixed(2)),
             ],
           ),
-        ),
-        const Divider(),
+        ],
+      ),
+    );
+  }
 
-        // Scoring buttons
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(kDefaultPadding),
-            child: Column(
-              children: [
-                // Main scoring buttons (0-6)
-                Expanded(
-                  child: GridView.count(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    children: [
-                      _buildScoringButton(
-                          '0', Colors.grey, () => _recordRun(0)),
-                      _buildScoringButton(
-                          '1', Colors.blue, () => _recordRun(1)),
-                      _buildScoringButton(
-                          '2', Colors.green, () => _recordRun(2)),
-                      _buildScoringButton(
-                          '3', Colors.orange, () => _recordRun(3)),
-                      _buildScoringButton(
-                          '4', Colors.purple, () => _recordRun(4)),
-                      _buildScoringButton('6', Colors.red, () => _recordRun(6)),
-                    ],
+  Widget _buildHeaderPill(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
+            ),
+            TextSpan(
+              text: value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                const SizedBox(height: 16),
+  Widget _buildOverStrip(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('This Over', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _OverBall(value: '0'),
+              _OverBall(value: '1'),
+              _OverBall(value: '4', isBoundary: true),
+              _OverBall(value: 'W', isWicket: true),
+              _OverBall(value: '2'),
+              _OverBall(value: '1'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-                // Special buttons row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSpecialButton(
-                        'WICKET',
-                        Colors.red.shade700,
-                        () => _showWicketDialog(context),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSpecialButton(
-                        'WIDE',
-                        Colors.amber,
-                        () => _recordExtra('wide'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSpecialButton(
-                        'NO BALL',
-                        Colors.deepOrange,
-                        () => _recordExtra('no_ball'),
-                      ),
-                    ),
-                  ],
-                ),
+  Widget _buildMatchMetaCard(ThemeData theme, String battingTeam, int runs,
+      int wickets, double overs) {
+    final targetInfo = (runs + (20 - overs).floor());
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _metaValue('Current', '$battingTeam $runs/$wickets'),
+          ),
+          Expanded(
+            child: _metaValue('Overs', _formatOvers(overs)),
+          ),
+          Expanded(
+            child: _metaValue('Projection', '$targetInfo'),
+          ),
+        ],
+      ),
+    );
+  }
 
-                const SizedBox(height: 8),
+  Widget _metaValue(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: AppTheme.textSecondaryColor),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+      ],
+    );
+  }
 
-                // Action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _recordExtra('bye'),
-                        icon: const Icon(Icons.arrow_forward),
-                        label: const Text('BYE'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _recordExtra('leg_bye'),
-                        icon: const Icon(Icons.arrow_forward),
-                        label: const Text('LEG BYE'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showUndoDialog(context),
-                        icon: const Icon(Icons.undo),
-                        label: const Text('UNDO'),
-                      ),
-                    ),
-                  ],
-                ),
+  Widget _buildControlDeck(ThemeData theme, {required bool isWide}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Text('Ball Input', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              children: [
+                _buildScoringButton(
+                    '0', const Color(0xFF718197), () => _recordRun(0)),
+                _buildScoringButton(
+                    '1', const Color(0xFF1868C8), () => _recordRun(1)),
+                _buildScoringButton(
+                    '2', const Color(0xFF0E9A77), () => _recordRun(2)),
+                _buildScoringButton(
+                    '3', const Color(0xFFF78D1E), () => _recordRun(3)),
+                _buildScoringButton(
+                    '4', const Color(0xFF0C4DA2), () => _recordRun(4)),
+                _buildScoringButton(
+                    '6', const Color(0xFFD04444), () => _recordRun(6)),
               ],
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSpecialButton(
+                  'WICKET',
+                  const Color(0xFFD04444),
+                  () => _showWicketDialog(context),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildSpecialButton(
+                  'WIDE',
+                  const Color(0xFFF78D1E),
+                  () => _recordExtra('wide'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildSpecialButton(
+                  'NO BALL',
+                  const Color(0xFFCE6A15),
+                  () => _recordExtra('no_ball'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _recordExtra('bye'),
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('Bye'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _recordExtra('leg_bye'),
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('Leg Bye'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showUndoDialog(context),
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Undo'),
+                ),
+              ),
+            ],
+          ),
+          if (isWide) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Tip: Use 0-6 for quick entry, then extras and wicket controls for precision scoring.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -244,16 +415,29 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     required int wickets,
     required String overs,
     required bool isBatting,
-    required ThemeData theme,
+    required bool darkMode,
   }) {
+    final primaryTextColor =
+        darkMode ? Colors.white : Theme.of(context).colorScheme.onSurface;
+    final secondaryTextColor = darkMode
+        ? Colors.white.withValues(alpha: 0.8)
+        : Theme.of(context).textTheme.bodySmall?.color;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color:
-            isBatting ? theme.colorScheme.primary.withValues(alpha: 0.1) : null,
+        color: isBatting
+            ? (darkMode
+                ? Colors.white.withValues(alpha: 0.16)
+                : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1))
+            : null,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isBatting ? theme.colorScheme.primary : Colors.transparent,
+          color: isBatting
+              ? (darkMode
+                  ? Colors.white.withValues(alpha: 0.8)
+                  : Theme.of(context).colorScheme.primary)
+              : Colors.transparent,
           width: 2,
         ),
       ),
@@ -261,20 +445,24 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
         children: [
           Text(
             teamName,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: primaryTextColor,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             '$score/$wickets',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: primaryTextColor,
+                ),
           ),
           Text(
             '($overs overs)',
-            style: theme.textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: secondaryTextColor,
+                ),
           ),
         ],
       ),
@@ -295,7 +483,7 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 24,
+          fontSize: 22,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -422,7 +610,6 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
   }
 
   void _showMatchSettings(BuildContext context) {
-    // TODO: Implement match settings dialog
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Match settings coming soon...')),
     );
@@ -458,5 +645,45 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     final fullOvers = overs.floor();
     final balls = ((overs - fullOvers) * 6).round();
     return '$fullOvers.$balls';
+  }
+}
+
+class _OverBall extends StatelessWidget {
+  final String value;
+  final bool isBoundary;
+  final bool isWicket;
+
+  const _OverBall({
+    required this.value,
+    this.isBoundary = false,
+    this.isWicket = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = isWicket
+        ? const Color(0xFFD04444)
+        : isBoundary
+            ? const Color(0xFF0C4DA2)
+            : const Color(0xFFE8EEF7);
+    final textColor =
+        isWicket || isBoundary ? Colors.white : const Color(0xFF0D1C33);
+
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        value,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 }

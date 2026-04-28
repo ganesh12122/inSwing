@@ -40,13 +40,15 @@ class MatchCardWidget extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _getStatusColor(theme, match.status),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      kMatchStatusLabels[match.status]?.toUpperCase() ?? match.status.toUpperCase(),
+                      kMatchStatusLabels[match.status]?.toUpperCase() ??
+                          match.status.toUpperCase(),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -57,15 +59,18 @@ class MatchCardWidget extends StatelessWidget {
                   const SizedBox(width: 6),
                   if (isDualCaptain)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                        color:
+                            theme.colorScheme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.people, size: 12, color: theme.colorScheme.primary),
+                          Icon(Icons.people,
+                              size: 12, color: theme.colorScheme.primary),
                           const SizedBox(width: 3),
                           Text(
                             'DUAL',
@@ -80,9 +85,11 @@ class MatchCardWidget extends StatelessWidget {
                     )
                   else
                     Text(
-                      kMatchTypeLabels[match.matchType]?.toUpperCase() ?? match.matchType.toUpperCase(),
+                      kMatchTypeLabels[match.matchType]?.toUpperCase() ??
+                          match.matchType.toUpperCase(),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 10,
                       ),
                     ),
@@ -130,7 +137,8 @@ class MatchCardWidget extends StatelessWidget {
                           Text(
                             '${match.teamARuns ?? 0}/${match.teamAWickets ?? 0} (${match.teamAOvers ?? 0.0})',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -142,7 +150,8 @@ class MatchCardWidget extends StatelessWidget {
                     child: Text(
                       'VS',
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -155,9 +164,12 @@ class MatchCardWidget extends StatelessWidget {
                           match.teamBName ?? '?',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            fontStyle: match.teamBName == null ? FontStyle.italic : null,
+                            fontStyle: match.teamBName == null
+                                ? FontStyle.italic
+                                : null,
                             color: match.teamBName == null
-                                ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
+                                ? theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.4)
                                 : null,
                           ),
                           maxLines: 1,
@@ -169,7 +181,8 @@ class MatchCardWidget extends StatelessWidget {
                           Text(
                             '${match.teamBRuns ?? 0}/${match.teamBWickets ?? 0} (${match.teamBOvers ?? 0.0})',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
                             ),
                             textAlign: TextAlign.end,
                           ),
@@ -184,9 +197,11 @@ class MatchCardWidget extends StatelessWidget {
               if (isDualCaptain && _isDualCaptainInProgress(match.status)) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(theme, match.status).withValues(alpha: 0.1),
+                    color: _getStatusColor(theme, match.status)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -204,14 +219,17 @@ class MatchCardWidget extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined, size: 16,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                    Icon(Icons.location_on_outlined,
+                        size: 16,
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         match.venue!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.6),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -226,8 +244,10 @@ class MatchCardWidget extends StatelessWidget {
               // Footer: time + scheduled + arrow
               Row(
                 children: [
-                  Icon(Icons.schedule, size: 16,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                  Icon(Icons.schedule,
+                      size: 16,
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                   const SizedBox(width: 4),
                   Text(
                     _formatMatchTime(match.createdAt),
@@ -237,19 +257,23 @@ class MatchCardWidget extends StatelessWidget {
                   ),
                   if (match.scheduledAt != null) ...[
                     const SizedBox(width: 16),
-                    Icon(Icons.event, size: 16,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                    Icon(Icons.event,
+                        size: 16,
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                     const SizedBox(width: 4),
                     Text(
                       _formatScheduledTime(match.scheduledAt!),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
                   const Spacer(),
                   Icon(Icons.chevron_right,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.4)),
                 ],
               ),
             ],
@@ -260,26 +284,33 @@ class MatchCardWidget extends StatelessWidget {
   }
 
   bool _isDualCaptainInProgress(String status) {
-    return ['created', 'invited', 'accepted', 'teams_ready',
-            'rules_proposed', 'rules_approved', 'toss_done'].contains(status);
+    return [
+      'created',
+      'invited',
+      'accepted',
+      'teams_ready',
+      'rules_proposed',
+      'rules_approved',
+      'toss_done'
+    ].contains(status);
   }
 
   String _getStatusHint(String status) {
     switch (status) {
       case 'created':
-        return '⏳ Waiting to invite opponent';
+        return 'Waiting to invite opponent captain';
       case 'invited':
-        return '📨 Invitation sent, awaiting response';
+        return 'Invitation sent and awaiting response';
       case 'accepted':
-        return '👥 Setting up teams';
+        return 'Teams are being set up';
       case 'teams_ready':
-        return '📋 Teams ready, negotiate rules';
+        return 'Teams ready, proceed to rules';
       case 'rules_proposed':
-        return '⚖️ Rules under negotiation';
+        return 'Rules are under review';
       case 'rules_approved':
-        return '🪙 Ready for toss';
+        return 'Ready for toss';
       case 'toss_done':
-        return '🏏 Ready to start';
+        return 'Toss complete, ready to start';
       default:
         return '';
     }
