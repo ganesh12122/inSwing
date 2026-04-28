@@ -555,6 +555,10 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
 
   // Scoring methods
   Future<void> _recordRun(int runs) async {
+    await _appendOptimisticBall(
+      runsOffBat: runs,
+      extrasRuns: 0,
+    );
     await ref.read(matchScoringProvider.notifier).recordBall(
           matchId: widget.matchId,
           runs: runs,
@@ -564,6 +568,12 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
   }
 
   Future<void> _recordExtra(String type) async {
+    final isRunAwardedExtra = type == 'wide' || type == 'no_ball';
+    await _appendOptimisticBall(
+      runsOffBat: 0,
+      extrasRuns: isRunAwardedExtra ? 1 : 0,
+      extrasType: type,
+    );
     await ref.read(matchScoringProvider.notifier).recordExtra(
           matchId: widget.matchId,
           type: type,
@@ -621,6 +631,11 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
   }
 
   Future<void> _recordWicket(String type) async {
+    await _appendOptimisticBall(
+      runsOffBat: 0,
+      extrasRuns: 0,
+      wicketType: type,
+    );
     await ref.read(matchScoringProvider.notifier).recordWicket(
           matchId: widget.matchId,
           type: type,
@@ -694,6 +709,52 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     return '$fullOvers.$balls';
   }
 
+  Future<void> _appendOptimisticBall({
+    required int runsOffBat,
+    required int extrasRuns,
+    String? extrasType,
+    String? wicketType,
+  }) async {
+    final currentMatch = ref.read(matchScoringProvider).value;
+    final inningsId = currentMatch?.currentInningsId;
+    if (currentMatch == null || inningsId == null || inningsId.isEmpty) return;
+
+    final battingOvers = currentMatch.battingTeam == 'A'
+        ? (currentMatch.teamAOvers ?? 0.0)
+        : (currentMatch.teamBOvers ?? 0.0);
+
+    final inferredOver = battingOvers.floor() + 1;
+    final nextBallInOver = (_currentOverBalls.length % 6) + 1;
+
+    final updated =
+        await ref.read(matchScoringProvider.notifier).appendOptimisticBallEvent(
+              matchId: currentMatch.id,
+              inningsId: inningsId,
+              overNumber: inferredOver,
+              ballInOver: nextBallInOver,
+              runsOffBat: runsOffBat,
+              extrasRuns: extrasRuns,
+              extrasType: extrasType,
+              wicketType: wicketType,
+            );
+
+    updated.sort((a, b) {
+      final overCompare = a.overNumber.compareTo(b.overNumber);
+      if (overCompare != 0) return overCompare;
+      return a.ballInOver.compareTo(b.ballInOver);
+    });
+    final latestOver = updated.map((b) => b.overNumber).reduce(math.max);
+    final currentOver =
+        updated.where((b) => b.overNumber == latestOver).toList();
+
+    if (!mounted) return;
+    setState(() {
+      _currentOverBalls = currentOver;
+      _lastLoadedSnapshot =
+          '${currentMatch.currentInningsId}|${currentMatch.battingTeam}|optimistic_${DateTime.now().millisecondsSinceEpoch}';
+    });
+  }
+
   void _scheduleCurrentOverRefresh(Match match) {
     final snapshot =
         '${match.currentInningsId}|${match.battingTeam}|${match.teamAOvers}|${match.teamBOvers}|${match.updatedAt.millisecondsSinceEpoch}';
@@ -736,6 +797,27 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
       setState(() => _isLoadingCurrentOver = true);
     }
 
+    // Show cached timeline immediately while fresh data loads.
+    final cachedBalls = ref
+        .read(matchScoringProvider.notifier)
+        .getCachedInningsBalls(match.id, inningsId);
+    if (cachedBalls.isNotEmpty && mounted) {
+      cachedBalls.sort((a, b) {
+        final overCompare = a.overNumber.compareTo(b.overNumber);
+        if (overCompare != 0) return overCompare;
+        return a.ballInOver.compareTo(b.ballInOver);
+      });
+
+      final cachedLatestOver =
+          cachedBalls.map((b) => b.overNumber).reduce(math.max);
+      final cachedCurrentOver =
+          cachedBalls.where((b) => b.overNumber == cachedLatestOver).toList();
+
+      setState(() {
+        _currentOverBalls = cachedCurrentOver;
+      });
+    }
+
     try {
       final apiService = ref.read(apiServiceProvider);
       final balls = await apiService.getInningsBalls(match.id, inningsId);
@@ -754,6 +836,10 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
           ? <Ball>[]
           : balls.where((b) => b.overNumber == latestOver).toList();
 
+      await ref
+          .read(matchScoringProvider.notifier)
+          .cacheInningsBalls(match.id, inningsId, balls);
+
       if (!mounted) return;
       setState(() {
         _currentOverBalls = currentOver;
@@ -763,7 +849,8 @@ class _MatchScoringScreenState extends ConsumerState<MatchScoringScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _currentOverBalls = [];
+        // Keep cached/last-known over if network fetch fails.
+        _currentOverBalls = _currentOverBalls;
       });
     } finally {
       if (mounted) {

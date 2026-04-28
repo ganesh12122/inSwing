@@ -134,19 +134,40 @@ class StorageService {
 
   /// Offline queue methods for ball updates
   static Future<void> addToOfflineQueue(Map<String, dynamic> action) async {
-    final queue = _offlineQueueBox.get('queue', defaultValue: <Map<String, dynamic>>[])
-        .cast<Map<String, dynamic>>();
+    final queue = _offlineQueueBox.get('queue',
+        defaultValue: <Map<String, dynamic>>[]).cast<Map<String, dynamic>>();
     queue.add(action);
     await _offlineQueueBox.put('queue', queue);
   }
 
   static List<Map<String, dynamic>> getOfflineQueue() {
-    return _offlineQueueBox.get('queue', defaultValue: <Map<String, dynamic>>[])
-        .cast<Map<String, dynamic>>();
+    return _offlineQueueBox.get('queue',
+        defaultValue: <Map<String, dynamic>>[]).cast<Map<String, dynamic>>();
   }
 
   static Future<void> clearOfflineQueue() async {
     await _offlineQueueBox.put('queue', <Map<String, dynamic>>[]);
+  }
+
+  /// Cached innings timeline methods for scoring continuity in offline mode
+  static Future<void> saveCachedInningsBalls(
+    String matchId,
+    String inningsId,
+    List<Map<String, dynamic>> balls,
+  ) async {
+    final key = 'balls_${matchId}_$inningsId';
+    await _offlineQueueBox.put(key, balls);
+  }
+
+  static List<Map<String, dynamic>> getCachedInningsBalls(
+    String matchId,
+    String inningsId,
+  ) {
+    final key = 'balls_${matchId}_$inningsId';
+    final raw = _offlineQueueBox.get(key, defaultValue: <dynamic>[]);
+    if (raw is! List) return <Map<String, dynamic>>[];
+
+    return raw.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
   /// Settings storage methods

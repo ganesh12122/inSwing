@@ -182,6 +182,60 @@ class MatchScoring extends _$MatchScoring {
       updatedAt: DateTime.now(),
     );
   }
+
+  Future<void> cacheInningsBalls(
+    String matchId,
+    String inningsId,
+    List<Ball> balls,
+  ) async {
+    await StorageService.saveCachedInningsBalls(
+      matchId,
+      inningsId,
+      balls.map((b) => b.toJson()).toList(),
+    );
+  }
+
+  List<Ball> getCachedInningsBalls(String matchId, String inningsId) {
+    final cached = StorageService.getCachedInningsBalls(matchId, inningsId);
+    return cached.map(Ball.fromJson).toList();
+  }
+
+  Future<List<Ball>> appendOptimisticBallEvent({
+    required String matchId,
+    required String inningsId,
+    required int overNumber,
+    required int ballInOver,
+    required int runsOffBat,
+    required int extrasRuns,
+    String? extrasType,
+    String? wicketType,
+  }) async {
+    final existing = getCachedInningsBalls(matchId, inningsId);
+    final now = DateTime.now();
+    final totalRuns = runsOffBat + extrasRuns;
+
+    final syntheticBall = Ball(
+      id: 'local_${now.microsecondsSinceEpoch}',
+      inningsId: inningsId,
+      overNumber: overNumber,
+      ballInOver: ballInOver,
+      batsmanId: 'local-batsman',
+      bowlerId: 'local-bowler',
+      runsOffBat: runsOffBat,
+      extrasType: extrasType,
+      extrasRuns: extrasRuns,
+      wicketType: wicketType,
+      dismissalInfo: null,
+      createdAt: now,
+      totalRuns: totalRuns,
+      isWicket: wicketType != null,
+      isBoundary: totalRuns >= 4,
+    );
+
+    final updated = [...existing, syntheticBall];
+    await cacheInningsBalls(matchId, inningsId, updated);
+    return updated;
+  }
 }
 
 // Extension to get current innings
