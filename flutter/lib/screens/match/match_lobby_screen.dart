@@ -5,6 +5,7 @@ import 'package:inswing/models/match_model.dart';
 import 'package:inswing/providers/auth_provider.dart';
 import 'package:inswing/providers/match_lobby_provider.dart';
 import 'package:inswing/services/api_service.dart';
+import 'package:inswing/theme/app_theme.dart';
 import 'package:inswing/utils/constants.dart';
 import 'package:inswing/widgets/common/app_button.dart';
 import 'package:inswing/widgets/common/app_text_field.dart';
@@ -80,8 +81,10 @@ class _MatchLobbyScreenState extends ConsumerState<MatchLobbyScreen> {
     final isHost = currentUserId == match.hostUserId;
     final isOpponent = currentUserId == match.opponentCaptainId;
     final isCaptain = isHost || isOpponent;
+    final isWide = MediaQuery.sizeOf(context).width >= 980;
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: Text(match.teamBName != null
             ? '${match.teamAName} vs ${match.teamBName}'
@@ -105,21 +108,69 @@ class _MatchLobbyScreenState extends ConsumerState<MatchLobbyScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(matchLobbyProvider.notifier).refresh(),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(kDefaultPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Progress stepper
-              _buildProgressStepper(match),
-              const SizedBox(height: 24),
-              // Status-specific content
-              _buildStatusContent(match, isHost, isOpponent, isCaptain,
-                  currentUserId, lobbyState),
-            ],
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF6F9FE), Color(0xFFF1F6FC)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(kDefaultPadding),
+            child: Center(
+              child: ConstrainedBox(
+                constraints:
+                    BoxConstraints(maxWidth: isWide ? 1050 : double.infinity),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildLobbyHero(match),
+                    const SizedBox(height: 16),
+                    _buildProgressStepper(match),
+                    const SizedBox(height: 20),
+                    _buildStatusContent(match, isHost, isOpponent, isCaptain,
+                        currentUserId, lobbyState),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLobbyHero(Match match) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0C4DA2), Color(0xFF1A6ED1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Match Command Center',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Status: ${kMatchStatusLabels[match.status] ?? match.status}',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.92),
+                ),
+          ),
+        ],
       ),
     );
   }
@@ -621,7 +672,7 @@ class _MatchLobbyScreenState extends ConsumerState<MatchLobbyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Toss Done! 🪙',
+            Text('Toss Complete',
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
@@ -635,7 +686,7 @@ class _MatchLobbyScreenState extends ConsumerState<MatchLobbyScreen> {
                 context.push('/match/${match.id}/score',
                     extra: {'is_host': isHost});
               },
-              text: 'Start Scoring 🏏',
+              text: 'Start Scoring',
               icon: Icons.play_arrow,
             ),
           ],
@@ -675,7 +726,7 @@ class _MatchLobbyScreenState extends ConsumerState<MatchLobbyScreen> {
               padding: const EdgeInsets.all(kDefaultPadding),
               child: Column(
                 children: [
-                  Text('🏆 Result',
+                  Text('Result',
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(
@@ -1230,7 +1281,7 @@ class _AcceptInvitationSectionState extends State<_AcceptInvitationSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('🏏 Match Invitation!',
+            Text('Match Invitation',
                 style: Theme.of(context)
                     .textTheme
                     .titleLarge

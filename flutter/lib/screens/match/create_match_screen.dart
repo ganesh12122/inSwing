@@ -162,10 +162,12 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final createMatchState = ref.watch(createMatchProvider);
+    final isWide = MediaQuery.sizeOf(context).width >= 920;
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Create Match'),
+        title: const Text('Create Match Setup'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -183,9 +185,24 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
           message: error.toString(),
           onRetry: () => ref.read(createMatchProvider.notifier).reset(),
         ),
-        data: (_) => _currentStep == 0
-            ? _buildModeSelection(theme)
-            : _buildMatchDetails(theme),
+        data: (_) => Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF6F9FE), Color(0xFFF0F5FC)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints:
+                  BoxConstraints(maxWidth: isWide ? 980 : double.infinity),
+              child: _currentStep == 0
+                  ? _buildModeSelection(theme)
+                  : _buildMatchDetails(theme),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -200,6 +217,37 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0C4DA2), Color(0xFF1A6ED1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Professional Match Bootstrapping',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Choose your control mode and configure match essentials before going live.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.92),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
           Text(
             'Choose Match Mode',
             style: theme.textTheme.headlineSmall
@@ -266,12 +314,33 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
 
   Widget _buildMatchDetails(ThemeData theme) {
     final isDualCaptain = _matchMode == 'dual_captain';
+    final isWide = MediaQuery.sizeOf(context).width >= 920;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(kDefaultPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.tune, color: AppTheme.primaryColor),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Step 2 of 2: finalize teams, venue, and match rules.',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           // Mode indicator chip
           Row(
             children: [
@@ -331,25 +400,41 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
             ),
           ] else ...[
             // Quick match: both team names
-            Row(
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    controller: _teamAController,
-                    label: 'Team A',
-                    hint: 'Team A Name',
+            isWide
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          controller: _teamAController,
+                          label: 'Team A',
+                          hint: 'Team A Name',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: AppTextField(
+                          controller: _teamBController,
+                          label: 'Team B',
+                          hint: 'Team B Name',
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      AppTextField(
+                        controller: _teamAController,
+                        label: 'Team A',
+                        hint: 'Team A Name',
+                      ),
+                      const SizedBox(height: 12),
+                      AppTextField(
+                        controller: _teamBController,
+                        label: 'Team B',
+                        hint: 'Team B Name',
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: AppTextField(
-                    controller: _teamBController,
-                    label: 'Team B',
-                    hint: 'Team B Name',
-                  ),
-                ),
-              ],
-            ),
           ],
 
           const SizedBox(height: 24),
