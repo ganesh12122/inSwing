@@ -203,8 +203,21 @@ export async function addPlayer(matchId: string, payload: AddPlayerPayload): Pro
   return data
 }
 
-export async function getTeams(matchId: string): Promise<{ team_a: PlayerInMatch[]; team_b: PlayerInMatch[] }> {
-  const { data } = await apiClient.get(`/matches/${matchId}/teams`)
+export interface TeamInfo {
+  name: string
+  players: PlayerInMatch[]
+  count: number
+  ready: boolean
+}
+
+export interface TeamsResponse {
+  team_a: TeamInfo
+  team_b: TeamInfo
+  min_players: number
+}
+
+export async function getTeams(matchId: string): Promise<TeamsResponse> {
+  const { data } = await apiClient.get<TeamsResponse>(`/matches/${matchId}/teams`)
   return data
 }
 

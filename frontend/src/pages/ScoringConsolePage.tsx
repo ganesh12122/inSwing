@@ -15,7 +15,7 @@ import type {
   MatchResponse,
   InningsResponse,
   BallResponse,
-  PlayerInMatch,
+  TeamsResponse,
 } from '../lib/api/matches'
 import { authStore } from '../lib/auth-store'
 import { createMatchSocket } from '../lib/ws'
@@ -673,7 +673,7 @@ function PreMatchView({
   addPlayerModal,
 }: {
   match: MatchResponse
-  teams: { team_a: PlayerInMatch[]; team_b: PlayerInMatch[] } | undefined
+  teams: TeamsResponse | undefined
   error: string
   onAddPlayer: (team: 'A' | 'B') => void
   onTeamReady: () => void
@@ -685,13 +685,14 @@ function PreMatchView({
 
       <div className="grid gap-4 md:grid-cols-2">
         {(['A', 'B'] as const).map((team) => {
-          const players = team === 'A' ? teams?.team_a : teams?.team_b
-          const teamName = team === 'A' ? match.team_a_name : (match.team_b_name ?? 'Team B')
+          const teamInfo = team === 'A' ? teams?.team_a : teams?.team_b
+          const players = teamInfo?.players
+          const teamName = teamInfo?.name ?? (team === 'A' ? match.team_a_name : (match.team_b_name ?? 'Team B'))
           return (
             <div key={team} className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold">{teamName}</h3>
-                <span className="text-xs text-[var(--text-muted)]">{players?.length ?? 0} players</span>
+                <span className="text-xs text-[var(--text-muted)]">{teamInfo?.count ?? 0} players</span>
               </div>
               <div className="mt-3 space-y-2">
                 {players?.map((p) => (

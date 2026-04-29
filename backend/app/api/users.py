@@ -207,6 +207,45 @@ async def update_user_profile(
     return user
 
 
+@router.put("/{user_id}/profile/cricket", response_model=ProfileResponse)
+async def update_cricket_profile(
+    user_id: str,
+    profile_update: ProfileUpdate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update player cricket profile (batting/bowling style, hand, etc.)."""
+    if current_user.id != user_id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update your own profile",
+        )
+
+    result = await db.execute(select(Profile).where(Profile.user_id == user_id))
+    profile = result.scalars().first()
+
+    if not profile:
+        # Auto-create profile if it doesn't exist
+        import uuid
+
+        profile = Profile(id=str(uuid.uuid4()), user_id=user_id)
+        db.add(profile)
+
+    update_data = profile_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if hasattr(profile, field):
+            setattr(profile, field, value.value if hasattr(value, "value") else value)
+
+    await db.commit()
+    await db.refresh(profile)
+
+    logger.info(
+        "Cricket profile updated", user_id=user_id, fields=list(update_data.keys())
+    )
+
+    return profile
+
+
 @router.get("/search", response_model=List[UserProfileResponse])
 async def search_users(
     q: Optional[str] = Query(

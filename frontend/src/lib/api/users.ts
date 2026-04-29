@@ -60,7 +60,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 }
 
 export async function updateProfile(userId: string, profile: ProfileUpdate): Promise<Profile> {
-  const { data } = await apiClient.put<Profile>(`/users/${userId}/profile`, profile)
+  const { data } = await apiClient.put<Profile>(`/users/${userId}/profile/cricket`, profile)
   return data
 }
 
