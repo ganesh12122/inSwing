@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from app.api import auth, users, matches, balls, leaderboards, notifications, search, websocket
+from app.api import (
+    auth,
+    users,
+    matches,
+    balls,
+    leaderboards,
+    notifications,
+    search,
+    websocket,
+    public,
+)
 
 # Create main API router
 api_router = APIRouter()
@@ -10,16 +20,23 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(matches.router, prefix="/matches", tags=["Matches"])
 api_router.include_router(balls.router, prefix="/matches", tags=["Scoring"])
-api_router.include_router(leaderboards.router, prefix="/leaderboards", tags=["Leaderboards"])
-api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
+api_router.include_router(
+    leaderboards.router, prefix="/leaderboards", tags=["Leaderboards"]
+)
+api_router.include_router(
+    notifications.router, prefix="/notifications", tags=["Notifications"]
+)
 api_router.include_router(search.router, prefix="/search", tags=["Search"])
 api_router.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
+api_router.include_router(public.router, prefix="/public", tags=["Public (No Auth)"])
+
 
 # Health check endpoint
 @api_router.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "inSwing API"}
+
 
 # API info endpoint
 @api_router.get("/info")
@@ -37,6 +54,7 @@ async def api_info():
             "leaderboards": "/api/v1/leaderboards",
             "notifications": "/api/v1/notifications",
             "search": "/api/v1/search",
-            "websocket": "/api/v1/ws/{token}"
-        }
+            "websocket": "/api/v1/ws/{token}",
+            "public_live_score": "/api/v1/public/live/{match_id}",
+        },
     }

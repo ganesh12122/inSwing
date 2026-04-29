@@ -20,6 +20,9 @@ from app.schemas import (
     MatchType,
     TossUpdate,
 )
+from app.services.match_service import match_service
+from app.services.stats_service import stats_service
+from app.services.redis_service import redis_service
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -980,11 +983,21 @@ async def update_match_status(
         match.started_at = datetime.utcnow()
     elif new_status == MatchStatus.finished and match.status != "finished":
         match.finished_at = datetime.utcnow()
+        # Auto-calculate result from innings data
+        match_result = await match_service.calculate_match_result(match, db)
+        if match_result:
+            match.result = match_result
 
     match.status = new_status.value
 
     await db.commit()
     await db.refresh(match)
+
+    # Update player stats when match finishes
+    if new_status == MatchStatus.finished:
+        await stats_service.update_player_stats_for_match(match_id, db)
+        await db.commit()
+        await redis_service.invalidate_match_state(match_id)
 
     logger.info(
         "Match status updated",

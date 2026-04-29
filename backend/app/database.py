@@ -56,8 +56,8 @@ else:
         settings.DATABASE_URL,
         pool_pre_ping=True,
         pool_recycle=300,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=20,
+        max_overflow=40,
         echo=settings.DEBUG,
     )
 
@@ -65,8 +65,8 @@ else:
         _async_database_url,
         pool_pre_ping=True,
         pool_recycle=300,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=20,
+        max_overflow=40,
         echo=settings.DEBUG,
     )
     logger.info("Using PostgreSQL database")
@@ -97,5 +97,4 @@ def get_db():
 async def get_async_db():
     """Dependency to get async database session."""
     async with AsyncSessionLocal() as db:
-        yield db
         yield db

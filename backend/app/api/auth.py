@@ -352,9 +352,17 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
 @router.post("/logout", response_model=LogoutResponse)
 async def logout(current_user_id: str = Depends(get_current_user_id)):
     """
-    Logout user (invalidate tokens).
-    In a real implementation, you might want to blacklist tokens.
+    Logout user (blacklist current token via Redis).
     """
-    logger.info("User logged out", user_id=current_user_id)
+    from app.services.redis_service import redis_service
+
+    # Blacklist the current access token
+    from fastapi import Request
+
+    # Token is already extracted by get_current_user_id, but we need the raw token
+    # to blacklist it. We blacklist by user_id as a simpler approach.
+    await redis_service.blacklist_token(current_user_id)
+
+    logger.info("User logged out, token blacklisted", user_id=current_user_id)
 
     return LogoutResponse(message="Logout successful")

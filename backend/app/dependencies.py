@@ -5,6 +5,7 @@ from app.auth import get_user_id_from_token
 from app.database import get_async_db
 from app.models.user import User
 from app.schemas.user import UserRole
+from app.services.redis_service import redis_service
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -39,7 +40,15 @@ async def get_current_user(
     db: AsyncSession = Depends(get_async_db),
     user_id: str = Depends(get_current_user_id),
 ) -> User:
-    """Get current user from database."""
+    """Get current user from database. Also checks token blacklist."""
+    # Check if user's token has been blacklisted (logout)
+    if await redis_service.is_token_blacklisted(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked. Please login again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
 

@@ -10,9 +10,14 @@ from app.models.match import Match
 from app.models.players_in_match import PlayersInMatch
 from app.models.user import User
 from app.schemas import BallCreate, BallResponse, BallUpdate, InningsResponse
+from app.services.match_service import match_service
+from app.services.stats_service import stats_service
+from app.services.redis_service import redis_service
+from app.api.websocket import send_ball_notification, send_match_status_notification
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, or_, select  # noqa: F401 - may be used in query filters
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -151,18 +156,41 @@ async def record_ball(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_host_role),
 ):
-    """Record a ball in the innings (idempotent with client_event_id)."""
-    # Validate match and innings
-    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    """Record a ball in the innings (idempotent with client_event_id).
+
+    Automatically:
+    - Enforces scorer_permission from match rules
+    - Broadcasts ball update to all WebSocket subscribers
+    - Caches live match state in Redis
+    - Auto-completes innings when all out or overs done
+    - Auto-finishes match when target chased (2nd innings)
+    - Updates player statistics when match finishes
+    """
+    # Validate match and load players for scorer permission check
+    match_result = await db.execute(
+        select(Match).options(selectinload(Match.players)).where(Match.id == match_id)
+    )
     match = match_result.scalars().first()
     if not match:
-        logger.warning(
-            "Match not found for ball recording",
-            match_id=match_id,
-            user_id=current_user.id,
-        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Match not found"
+        )
+
+    # ---- Scorer permission enforcement ----
+    if not match.can_score(current_user.id):
+        logger.warning(
+            "Scorer permission denied",
+            match_id=match_id,
+            user_id=current_user.id,
+            permission=(
+                match.rules.get("scorer_permission", "host_only")
+                if match.rules
+                else "host_only"
+            ),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have scoring permission for this match",
         )
 
     innings_result = await db.execute(
@@ -171,30 +199,10 @@ async def record_ball(
     innings = innings_result.scalars().first()
 
     if not innings:
-        logger.warning(
-            "Innings not found for ball recording",
-            innings_id=innings_id,
-            match_id=match_id,
-            user_id=current_user.id,
-        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Innings not found"
         )
 
-    # Check if user is the host
-    if match.host_user_id != current_user.id:
-        logger.warning(
-            "Unauthorized ball recording",
-            match_id=match_id,
-            user_id=current_user.id,
-            host_id=match.host_user_id,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the match host can record balls",
-        )
-
-    # Check if innings is active
     if innings.is_completed:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -210,7 +218,6 @@ async def record_ball(
             )
         )
         existing_ball = existing_ball_result.scalars().first()
-
         if existing_ball:
             logger.info(
                 "Ball already recorded (idempotent)",
@@ -227,9 +234,7 @@ async def record_ball(
                 PlayersInMatch.user_id == ball_data.batsman_id,
             )
         )
-        batsman_in_match = batsman_result.scalars().first()
-
-        if not batsman_in_match:
+        if not batsman_result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Batsman is not in this match",
@@ -242,9 +247,7 @@ async def record_ball(
                 PlayersInMatch.user_id == ball_data.bowler_id,
             )
         )
-        bowler_in_match = bowler_result.scalars().first()
-
-        if not bowler_in_match:
+        if not bowler_result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bowler is not in this match",
@@ -275,7 +278,6 @@ async def record_ball(
 
     # Update overs bowled (only for legal deliveries)
     if ball.is_legal_delivery:
-        # Calculate new overs bowled
         total_balls = int(innings.overs_bowled) * 6 + innings.current_over_balls + 1
         innings.overs_bowled = total_balls // 6 + (total_balls % 6) / 10
 
@@ -283,13 +285,75 @@ async def record_ball(
     if ball_data.wicket_type:
         innings.wickets += 1
 
-    # Check if innings is completed
-    if innings.wickets >= 10 or innings.overs_bowled >= innings.overs_allocated:
-        innings.is_completed = True
-        innings.completed_at = datetime.utcnow()
+    # ---- Auto-complete innings (all out / overs done) ----
+    innings_completed = await match_service.check_auto_complete_innings(
+        innings, match, db
+    )
+
+    # ---- Auto-finish match when target chased in 2nd innings ----
+    match_finished = False
+    if not innings_completed:
+        match_finished = await match_service.check_target_chased(innings, match, db)
+
+    if innings_completed or match_finished:
+        # Check if this was the second innings — finalize the match
+        all_innings_result = await db.execute(
+            select(Innings).where(Innings.match_id == match_id)
+        )
+        all_innings = all_innings_result.scalars().all()
+        completed_innings = [i for i in all_innings if i.is_completed]
+
+        if len(completed_innings) >= 2:
+            await match_service.finalize_match(match, db)
+            match_finished = True
 
     await db.commit()
     await db.refresh(ball)
+
+    # ---- Broadcast via WebSocket ----
+    ball_broadcast = {
+        "ball_id": ball.id,
+        "over_number": ball.over_number,
+        "ball_in_over": ball.ball_in_over,
+        "runs_off_bat": ball.runs_off_bat,
+        "extras_type": ball.extras_type,
+        "extras_runs": ball.extras_runs,
+        "total_runs": ball.total_runs,
+        "wicket_type": ball.wicket_type,
+        "batsman_id": ball.batsman_id,
+        "bowler_id": ball.bowler_id,
+        "innings_runs": innings.runs,
+        "innings_wickets": innings.wickets,
+        "innings_overs": float(innings.overs_bowled),
+        "innings_completed": innings.is_completed,
+    }
+    await send_ball_notification(
+        match_id, ball_broadcast, exclude_user_id=current_user.id
+    )
+
+    if match_finished:
+        await send_match_status_notification(
+            match_id, "finished", exclude_user_id=current_user.id
+        )
+        # Update player stats
+        await stats_service.update_player_stats_for_match(match_id, db)
+        await db.commit()
+
+    # ---- Cache live state in Redis ----
+    await redis_service.cache_match_state(
+        match_id,
+        {
+            "match_id": match_id,
+            "status": match.status,
+            "innings_id": innings_id,
+            "runs": innings.runs,
+            "wickets": innings.wickets,
+            "overs": float(innings.overs_bowled),
+            "innings_completed": innings.is_completed,
+            "match_finished": match_finished,
+            "last_ball": ball_broadcast,
+        },
+    )
 
     logger.info(
         "Ball recorded successfully",
@@ -299,6 +363,8 @@ async def record_ball(
         over=f"{ball.over_number}.{ball.ball_in_over}",
         runs=ball.total_runs,
         wicket=bool(ball.wicket_type),
+        innings_completed=innings.is_completed,
+        match_finished=match_finished,
         user_id=current_user.id,
     )
 

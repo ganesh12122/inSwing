@@ -3,9 +3,10 @@ import sys
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Add the backend directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,6 +17,7 @@ from app.api import api_router
 from app.database import async_engine, engine
 from app.error_handlers import register_exception_handlers
 from app.logging_config import RequestLoggingMiddleware, configure_logging
+from app.services.redis_service import redis_service
 from app.settings import settings
 from sqlalchemy import text
 
@@ -30,6 +32,9 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting inSwing backend application")
 
+    # Connect Redis
+    await redis_service.connect()
+
     # Auto-create tables for SQLite dev mode (no Alembic migration needed)
     if settings.DATABASE_URL.startswith("sqlite"):
         from app.database import Base, engine
@@ -39,6 +44,7 @@ async def lifespan(app: FastAPI):
 
     yield
     # Shutdown
+    await redis_service.disconnect()
     logger.info("Shutting down inSwing backend application")
 
 
@@ -71,6 +77,42 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
 
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
+
+
+# Rate limiting middleware
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Skip rate limiting for health checks, docs, and WebSocket
+        if request.url.path in ("/health", "/docs", "/redoc", "/openapi.json", "/"):
+            return await call_next(request)
+        if request.url.path.startswith("/api/v1/ws"):
+            return await call_next(request)
+        # Skip when Redis is not available (dev/test without Redis)
+        if not redis_service.available:
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "unknown"
+        allowed, count = await redis_service.check_rate_limit(
+            client_ip, settings.RATE_LIMIT_PER_MINUTE, 60
+        )
+
+        if not allowed:
+            return Response(
+                content='{"detail":"Rate limit exceeded. Try again later."}',
+                status_code=429,
+                media_type="application/json",
+                headers={"Retry-After": "60"},
+            )
+
+        response = await call_next(request)
+        response.headers["X-RateLimit-Limit"] = str(settings.RATE_LIMIT_PER_MINUTE)
+        response.headers["X-RateLimit-Remaining"] = str(
+            max(0, settings.RATE_LIMIT_PER_MINUTE - count)
+        )
+        return response
+
+
+app.add_middleware(RateLimitMiddleware)
 
 # Register exception handlers
 register_exception_handlers(app)
@@ -105,6 +147,7 @@ async def health_check():
         "service": "inSwing-backend",
         "version": "1.0.0",
         "database": "up" if db_ok else "down",
+        "redis": "up" if redis_service.available else "down",
     }
 
 
