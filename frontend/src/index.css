@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  font-family: 'Manrope', 'Segoe UI', sans-serif;
-  --bg-deep: #07141f;
-  --bg-mid: #0f2434;
-  --bg-surface: #112b3d;
-  --text-primary: #e9f3fb;
-  --text-muted: #9eb2c4;
-  --line: #23425a;
-  --accent: #0bb0f5;
-  --accent-strong: #00d17f;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --bg-deep: #0C1821;
+  --bg-mid: #162029;
+  --bg-surface: #1E2D3D;
+  --text-primary: #E8ECF1;
+  --text-muted: #7A8B9A;
+  --line: #2A3A4A;
+  --accent: #1B8A4A;
+  --accent-strong: #22C55E;
 }
 
 * {
@@ -25,10 +25,7 @@ body,
 body {
   margin: 0;
   color: var(--text-primary);
-  background:
-    radial-gradient(circle at 20% 5%, #1f4a68 0%, transparent 45%),
-    radial-gradient(circle at 90% 85%, #0f5a47 0%, transparent 35%),
-    linear-gradient(165deg, var(--bg-deep) 0%, var(--bg-mid) 55%, #0a1a2a 100%);
+  background: var(--bg-deep);
 }
 
 a {

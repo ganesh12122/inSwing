@@ -37,23 +37,23 @@ function EmailLoginForm() {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4">
       <label className="block">
-        <span className="mb-1 block text-sm text-[var(--text-muted)]">Email</span>
+        <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">Email</span>
         <input
           {...register('email')}
           type="email"
-          className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+          className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
         />
-        {formState.errors.email && <p className="mt-1 text-xs text-red-300">{formState.errors.email.message}</p>}
+        {formState.errors.email && <p className="mt-1 text-xs text-red-400">{formState.errors.email.message}</p>}
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm text-[var(--text-muted)]">Password</span>
+        <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">Password</span>
         <input
           {...register('password')}
           type="password"
-          className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+          className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
         />
-        {formState.errors.password && <p className="mt-1 text-xs text-red-300">{formState.errors.password.message}</p>}
+        {formState.errors.password && <p className="mt-1 text-xs text-red-400">{formState.errors.password.message}</p>}
       </label>
 
       {serverError && <p className="text-xs text-red-400">{serverError}</p>}
@@ -61,9 +61,9 @@ function EmailLoginForm() {
       <button
         type="submit"
         disabled={formState.isSubmitting}
-        className="w-full rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-4 py-2 font-semibold text-slate-900 disabled:opacity-50"
+        className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
       >
-        {formState.isSubmitting ? 'Signing in…' : 'Continue'}
+        {formState.isSubmitting ? 'Signing in…' : 'Sign In'}
       </button>
     </form>
   )
@@ -111,15 +111,15 @@ function OTPLoginForm() {
     return (
       <form onSubmit={phoneForm.handleSubmit(sendOTP)} className="space-y-4">
         <label className="block">
-          <span className="mb-1 block text-sm text-[var(--text-muted)]">Phone number</span>
+          <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">Phone number</span>
           <input
             {...phoneForm.register('phone')}
             type="tel"
             placeholder="+91 98765 43210"
-            className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
           />
           {phoneForm.formState.errors.phone && (
-            <p className="mt-1 text-xs text-red-300">{phoneForm.formState.errors.phone.message}</p>
+            <p className="mt-1 text-xs text-red-400">{phoneForm.formState.errors.phone.message}</p>
           )}
         </label>
 
@@ -128,7 +128,7 @@ function OTPLoginForm() {
         <button
           type="submit"
           disabled={phoneForm.formState.isSubmitting}
-          className="w-full rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-4 py-2 font-semibold text-slate-900 disabled:opacity-50"
+          className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
         >
           {phoneForm.formState.isSubmitting ? 'Sending…' : 'Send OTP'}
         </button>
@@ -140,16 +140,16 @@ function OTPLoginForm() {
     <form onSubmit={otpForm.handleSubmit(confirmOTP)} className="space-y-4">
       <p className="text-sm text-[var(--text-muted)]">Enter the 6-digit code sent to your phone.</p>
       <label className="block">
-        <span className="mb-1 block text-sm text-[var(--text-muted)]">OTP code</span>
+        <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">OTP code</span>
         <input
           {...otpForm.register('otp')}
           type="text"
           inputMode="numeric"
           maxLength={6}
-          className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-center text-2xl tracking-[0.5em] outline-none focus:border-[var(--accent)]"
+          className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-center text-2xl tracking-[0.5em] outline-none transition focus:border-[var(--accent)]"
         />
         {otpForm.formState.errors.otp && (
-          <p className="mt-1 text-xs text-red-300">{otpForm.formState.errors.otp.message}</p>
+          <p className="mt-1 text-xs text-red-400">{otpForm.formState.errors.otp.message}</p>
         )}
       </label>
 
@@ -158,7 +158,7 @@ function OTPLoginForm() {
       <button
         type="submit"
         disabled={otpForm.formState.isSubmitting}
-        className="w-full rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-4 py-2 font-semibold text-slate-900 disabled:opacity-50"
+        className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
       >
         {otpForm.formState.isSubmitting ? 'Verifying…' : 'Verify & Sign In'}
       </button>
@@ -182,27 +182,27 @@ export function AuthPage() {
 
   return (
     <section className="grid gap-5 md:grid-cols-[1.2fr_1fr]">
-      <article className="rounded-2xl border border-[var(--line)] bg-[rgba(15,36,52,0.72)] p-6">
-        <p className="text-xs uppercase tracking-[0.22em] text-[var(--accent-strong)]">Broadcast-grade onboarding</p>
-        <h2 className="mt-2 text-3xl font-extrabold">Sign in and Step Into Match Control</h2>
-        <p className="mt-3 max-w-xl text-[var(--text-muted)]">
-          inSwing V1 focuses on professional profile setup, instant match creation, and ball-by-ball reliability for both
-          gully and professional cricket use cases.
+      <article className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Welcome</p>
+        <h2 className="mt-2 text-2xl font-bold">Sign in to inSwing</h2>
+        <p className="mt-3 max-w-xl text-sm text-[var(--text-muted)] leading-relaxed">
+          Professional cricket scoring with ball-by-ball accuracy, real-time live scorecards,
+          and comprehensive match management — built for every level of the game.
         </p>
       </article>
 
-      <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
         {/* Tab switcher */}
-        <div className="mb-5 flex rounded-xl border border-[var(--line)] p-1 text-sm">
+        <div className="mb-5 flex rounded-lg border border-[var(--line)] p-1 text-sm">
           {(['email', 'otp'] as Tab[]).map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setTab(t)}
-              className={`flex-1 rounded-lg py-1.5 font-medium transition-colors ${
+              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
                 tab === t
-                  ? 'bg-[var(--accent)] text-slate-900'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-base)]'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
               }`}
             >
               {t === 'email' ? 'Email' : 'Phone OTP'}

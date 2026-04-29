@@ -35,18 +35,18 @@ type MatchInput = z.infer<typeof matchSchema>
 
 const PRESETS = [
   {
-    label: 'Gully Cricket',
-    desc: '6 overs • Tennis ball • Last man standing',
+    label: 'Quick 6',
+    desc: '6 overs · Tennis ball · Last man standing',
     values: { overs_limit: 6, max_players_per_team: 8, tennis_ball: true, last_man_batting: true, free_hit: true },
   },
   {
-    label: 'Club Match',
-    desc: '20 overs • Standard rules',
+    label: 'T20',
+    desc: '20 overs · Standard rules',
     values: { overs_limit: 20, max_players_per_team: 11, tennis_ball: false, last_man_batting: false, free_hit: true },
   },
   {
-    label: 'Quick T10',
-    desc: '10 overs • Fast format',
+    label: 'T10',
+    desc: '10 overs · Fast format',
     values: { overs_limit: 10, max_players_per_team: 8, tennis_ball: true, last_man_batting: false, free_hit: true },
   },
 ] as const
@@ -117,10 +117,10 @@ export function MatchStudioPage() {
   if (step === 'type') {
     return (
       <section className="space-y-6">
-        <article className="rounded-2xl border border-[var(--line)] bg-[rgba(15,36,52,0.72)] p-6 lg:p-8">
-          <p className="text-xs uppercase tracking-[0.22em] text-[var(--accent-strong)]">Match Studio</p>
-          <h2 className="mt-3 text-3xl font-extrabold lg:text-4xl">Create a Match</h2>
-          <p className="mt-3 max-w-xl text-[var(--text-muted)]">
+        <article className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6 lg:p-8">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Match Studio</p>
+          <h2 className="mt-2 text-2xl font-bold lg:text-3xl">Create a Match</h2>
+          <p className="mt-3 max-w-xl text-sm text-[var(--text-muted)]">
             Choose your match format. Quick matches let you manage both teams solo.
             Dual Captain mode invites an opponent to co-manage their squad.
           </p>
@@ -134,17 +134,14 @@ export function MatchStudioPage() {
               setValue('match_type', 'quick')
               setStep('config')
             }}
-            className="group rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6 text-left transition hover:border-[var(--accent)]"
+            className="group rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6 text-left transition hover:border-[var(--accent)]"
           >
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[rgba(11,176,245,0.12)] text-xl">
-              ⚡
-            </div>
-            <h3 className="text-xl font-bold">Quick Match</h3>
+            <h3 className="text-lg font-bold">Quick Match</h3>
             <p className="mt-2 text-sm text-[var(--text-muted)] leading-relaxed">
               You control both teams. Create teams, add players, toss, and start scoring — all in one flow.
-              Perfect for local gully cricket.
+              Ideal for pickup games and quick fixtures.
             </p>
-            <p className="mt-4 text-xs font-medium text-[var(--accent)] opacity-0 transition group-hover:opacity-100">
+            <p className="mt-4 text-xs font-semibold text-[var(--accent)] opacity-0 transition group-hover:opacity-100">
               Select →
             </p>
           </button>
@@ -156,17 +153,14 @@ export function MatchStudioPage() {
               setValue('match_type', 'dual_captain')
               setStep('config')
             }}
-            className="group rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6 text-left transition hover:border-[var(--accent-strong)]"
+            className="group rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6 text-left transition hover:border-[var(--accent-strong)]"
           >
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[rgba(0,209,127,0.12)] text-xl">
-              🤝
-            </div>
-            <h3 className="text-xl font-bold">Dual Captain</h3>
+            <h3 className="text-lg font-bold">Dual Captain</h3>
             <p className="mt-2 text-sm text-[var(--text-muted)] leading-relaxed">
               Invite an opponent captain. Each captain manages their own squad, agrees on rules,
               and negotiates before the match begins.
             </p>
-            <p className="mt-4 text-xs font-medium text-[var(--accent-strong)] opacity-0 transition group-hover:opacity-100">
+            <p className="mt-4 text-xs font-semibold text-[var(--accent-strong)] opacity-0 transition group-hover:opacity-100">
               Select →
             </p>
           </button>
@@ -179,11 +173,11 @@ export function MatchStudioPage() {
   if (step === 'done' && createdMatchId) {
     return (
       <section className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[rgba(0,209,127,0.15)] text-4xl">
-          🏏
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[var(--accent-strong)] text-2xl font-bold">
+          ✓
         </div>
-        <h2 className="text-2xl font-extrabold">Match Created!</h2>
-        <p className="mt-2 text-[var(--text-muted)]">
+        <h2 className="text-xl font-bold">Match Created</h2>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
           {matchType === 'dual_captain'
             ? 'Now invite your opponent captain to get started.'
             : 'Add players, do the toss, and start scoring.'}
@@ -191,13 +185,13 @@ export function MatchStudioPage() {
         <div className="mt-6 flex gap-3">
           <button
             onClick={() => navigate(`/match/${createdMatchId}/scoring`)}
-            className="rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-6 py-2.5 font-semibold text-slate-900"
+            className="rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
           >
             Go to Scoring →
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="rounded-xl border border-[var(--line)] px-6 py-2.5 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
+            className="rounded-lg border border-[var(--line)] px-5 py-2.5 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
           >
             Dashboard
           </button>
@@ -213,32 +207,32 @@ export function MatchStudioPage() {
         <button
           type="button"
           onClick={() => setStep('type')}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--line)] text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
         >
           ←
         </button>
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--accent)]">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
             {matchType === 'quick' ? 'Quick Match' : 'Dual Captain'}
           </p>
-          <h2 className="text-2xl font-extrabold">Configure Match</h2>
+          <h2 className="text-xl font-bold">Configure Match</h2>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(submit as never)} className="grid gap-6 lg:grid-cols-[1fr_1fr]">
         {/* Left column — Teams */}
-        <div className="space-y-5 rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6">
-          <h3 className="text-lg font-bold">Teams & Venue</h3>
+        <div className="space-y-5 rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
+          <h3 className="text-base font-bold">Teams & Venue</h3>
 
           <label className="block">
             <span className="mb-1 block text-sm text-[var(--text-muted)]">Your Team Name</span>
             <input
               {...register('team_a_name')}
               placeholder="e.g. Mumbai Mavericks"
-              className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+              className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
             />
             {formState.errors.team_a_name && (
-              <p className="mt-1 text-xs text-red-300">{formState.errors.team_a_name.message}</p>
+              <p className="mt-1 text-xs text-red-400">{formState.errors.team_a_name.message}</p>
             )}
           </label>
 
@@ -248,16 +242,16 @@ export function MatchStudioPage() {
               <input
                 {...register('team_b_name')}
                 placeholder="e.g. Delhi Dragons"
-                className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
               />
               {formState.errors.team_b_name && (
-                <p className="mt-1 text-xs text-red-300">{formState.errors.team_b_name.message}</p>
+                <p className="mt-1 text-xs text-red-400">{formState.errors.team_b_name.message}</p>
               )}
             </label>
           )}
 
           {matchType === 'dual_captain' && (
-            <div className="rounded-xl border border-dashed border-[var(--line)] bg-[rgba(255,255,255,0.02)] p-4 text-center">
+            <div className="rounded-lg border border-dashed border-[var(--line)] bg-[var(--bg-deep)] p-4 text-center">
               <p className="text-sm text-[var(--text-muted)]">
                 Opponent captain will name their team after accepting your invite
               </p>
@@ -269,15 +263,15 @@ export function MatchStudioPage() {
             <input
               {...register('venue')}
               placeholder="e.g. Marine Drive Ground"
-              className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+              className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
             />
           </label>
         </div>
 
         {/* Right column — Rules */}
-        <div className="space-y-5 rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6">
+        <div className="space-y-5 rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold">Match Rules</h3>
+            <h3 className="text-base font-bold">Match Rules</h3>
           </div>
 
           {/* Presets */}
@@ -287,7 +281,7 @@ export function MatchStudioPage() {
                 key={p.label}
                 type="button"
                 onClick={() => applyPreset(p)}
-                className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                className="rounded-md border border-[var(--line)] px-3 py-1.5 text-xs font-medium transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
               >
                 {p.label}
               </button>
@@ -296,40 +290,40 @@ export function MatchStudioPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
-              <span className="mb-1 block text-xs text-[var(--text-muted)]">Overs</span>
+              <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Overs</span>
               <input
                 {...register('overs_limit')}
                 type="number"
                 min={1}
                 max={50}
-                className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-[var(--text-muted)]">Players / Team</span>
+              <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Players / Team</span>
               <input
                 {...register('max_players_per_team')}
                 type="number"
                 min={2}
                 max={15}
-                className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-[var(--text-muted)]">Wide Runs</span>
+              <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Wide Runs</span>
               <select
                 {...register('wide_ball_runs')}
-                className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
               >
                 <option value={1}>1 run</option>
                 <option value={2}>2 runs</option>
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-[var(--text-muted)]">No-Ball Runs</span>
+              <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">No-Ball Runs</span>
               <select
                 {...register('no_ball_runs')}
-                className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
               >
                 <option value={1}>1 run</option>
                 <option value={2}>2 runs</option>
@@ -341,10 +335,10 @@ export function MatchStudioPage() {
           <div className="space-y-3">
             {[
               { name: 'free_hit' as const, label: 'Free Hit', desc: 'After no-ball' },
-              { name: 'last_man_batting' as const, label: 'Last Man Batting', desc: 'Gully cricket style' },
+              { name: 'last_man_batting' as const, label: 'Last Man Batting', desc: 'Continues when one wicket remains' },
               { name: 'tennis_ball' as const, label: 'Tennis Ball', desc: 'Soft ball match' },
             ].map((toggle) => (
-              <label key={toggle.name} className="flex cursor-pointer items-center justify-between rounded-xl border border-[var(--line)] px-4 py-3">
+              <label key={toggle.name} className="flex cursor-pointer items-center justify-between rounded-lg border border-[var(--line)] px-4 py-3">
                 <div>
                   <p className="text-sm font-medium">{toggle.label}</p>
                   <p className="text-xs text-[var(--text-muted)]">{toggle.desc}</p>
@@ -360,10 +354,10 @@ export function MatchStudioPage() {
 
           {/* Scorer permission */}
           <label className="block">
-            <span className="mb-1 block text-xs text-[var(--text-muted)]">Who Can Score</span>
+            <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Who Can Score</span>
             <select
               {...register('scorer_permission')}
-              className="w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+              className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
             >
               <option value="host_only">Host Only</option>
               <option value="captains">Either Captain</option>
@@ -378,9 +372,9 @@ export function MatchStudioPage() {
           <button
             type="submit"
             disabled={formState.isSubmitting}
-            className="w-full rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-6 py-3 text-lg font-bold text-slate-900 transition hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-lg bg-[var(--accent)] px-6 py-3 text-base font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
           >
-            {formState.isSubmitting ? 'Creating Match…' : 'Create Match 🏏'}
+            {formState.isSubmitting ? 'Creating Match…' : 'Create Match'}
           </button>
         </div>
       </form>

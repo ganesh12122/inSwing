@@ -37,11 +37,11 @@ function ballLabel(b: { runs_off_bat: number; extras_type: string | null; wicket
 }
 
 function ballColor(b: { runs_off_bat: number; extras_type: string | null; wicket_type: string | null }) {
-  if (b.wicket_type) return 'bg-red-500/20 text-red-300 border-red-500/40'
-  if (b.extras_type) return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-  if (b.runs_off_bat === 4) return 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-  if (b.runs_off_bat === 6) return 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-  return 'bg-[rgba(255,255,255,0.05)] border-[var(--line)]'
+  if (b.wicket_type) return 'bg-red-500/15 text-red-400 border-red-500/30'
+  if (b.extras_type) return 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+  if (b.runs_off_bat === 4) return 'bg-blue-500/10 text-blue-400 border-blue-500/25'
+  if (b.runs_off_bat === 6) return 'bg-purple-500/10 text-purple-400 border-purple-500/25'
+  return 'bg-[var(--bg-surface)] border-[var(--line)]'
 }
 
 // ── Add Player Modal ────────────────────────────────────────────────────────
@@ -79,16 +79,16 @@ function AddPlayerModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl border border-[var(--line)] bg-[var(--bg-mid)] p-6"
+        className="w-full max-w-sm rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold">Add Player — Team {team}</h3>
+        <h3 className="text-base font-bold">Add Player — Team {team}</h3>
         <p className="mt-1 text-sm text-[var(--text-muted)]">Guest players don't need an account</p>
         <input
           value={guestName}
           onChange={(e) => setGuestName(e.target.value)}
           placeholder="Player name"
-          className="mt-4 w-full rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.03)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+          className="mt-4 w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
           autoFocus
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
         />
@@ -97,11 +97,11 @@ function AddPlayerModal({
           <button
             onClick={handleAdd}
             disabled={loading || !guestName.trim()}
-            className="flex-1 rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] py-2 font-semibold text-slate-900 disabled:opacity-50"
+            className="flex-1 rounded-lg bg-[var(--accent)] py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {loading ? 'Adding…' : 'Add Player'}
           </button>
-          <button onClick={onClose} className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm text-[var(--text-muted)]">
+          <button onClick={onClose} className="rounded-lg border border-[var(--line)] px-4 py-2 text-sm text-[var(--text-muted)]">
             Cancel
           </button>
         </div>
@@ -156,7 +156,6 @@ export function ScoringConsolePage() {
     if (innings && innings.length > 0) {
       const active = innings.find((i) => !i.is_completed) ?? innings[innings.length - 1]
       setCurrentInnings(active)
-      // Calculate current over/ball from innings data
       const totalLegalBalls = Math.round(active.overs_bowled * 10) % 10
       setCurrentOver(Math.floor(active.overs_bowled) + (totalLegalBalls > 0 ? 0 : 0) + 1)
       setCurrentBall(totalLegalBalls + 1)
@@ -210,12 +209,11 @@ export function ScoringConsolePage() {
 
         setOverBalls((prev) => [...prev, ball])
 
-        // Advance ball counter
         if (ball.is_legal_delivery) {
           if (currentBall >= 6) {
             setCurrentOver((o) => o + 1)
             setCurrentBall(1)
-            setOverBalls([]) // new over
+            setOverBalls([])
           } else {
             setCurrentBall((b) => b + 1)
           }
@@ -324,14 +322,14 @@ export function ScoringConsolePage() {
     return (
       <section className="space-y-6">
         <MatchHeader match={match} innings={null} />
-        <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6 text-center">
-          <h3 className="text-xl font-bold">Ready to Start</h3>
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6 text-center">
+          <h3 className="text-lg font-bold">Ready to Start</h3>
           <p className="mt-2 text-sm text-[var(--text-muted)]">
             Toss won by Team {match.toss_winner} — chose to {match.toss_decision}
           </p>
           <button
             onClick={handleCreateInnings}
-            className="mt-4 rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-6 py-2.5 font-semibold text-slate-900"
+            className="mt-4 rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
           >
             Start 1st Innings
           </button>
@@ -365,15 +363,15 @@ export function ScoringConsolePage() {
     return (
       <section className="space-y-6">
         <MatchHeader match={match} innings={innings[0]} />
-        <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6 text-center">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--accent)]">Innings Break</p>
-          <h3 className="mt-2 text-2xl font-extrabold">
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Innings Break</p>
+          <h3 className="mt-2 text-xl font-bold">
             Team {innings[0].batting_team}: {innings[0].runs}/{innings[0].wickets}
           </h3>
-          <p className="mt-2 text-lg text-[var(--text-muted)]">Target: {target}</p>
+          <p className="mt-2 text-base text-[var(--text-muted)]">Target: {target}</p>
           <button
             onClick={handleStartSecondInnings}
-            className="mt-4 rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-6 py-2.5 font-semibold text-slate-900"
+            className="mt-4 rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
           >
             Start 2nd Innings
           </button>
@@ -396,10 +394,10 @@ export function ScoringConsolePage() {
           {innings.map((inn) => (
             <div
               key={inn.id}
-              className={`rounded-xl border px-4 py-2 text-sm ${
+              className={`rounded-lg border px-4 py-2 text-sm ${
                 inn.id === currentInnings?.id
-                  ? 'border-[var(--accent)] bg-[rgba(11,176,245,0.1)]'
-                  : 'border-[var(--line)] bg-[rgba(8,20,31,0.6)]'
+                  ? 'border-[var(--accent)] bg-[var(--accent)]/8'
+                  : 'border-[var(--line)] bg-[var(--bg-deep)]'
               }`}
             >
               <span className="font-bold">
@@ -412,7 +410,7 @@ export function ScoringConsolePage() {
             </div>
           ))}
           {target && (
-            <div className="rounded-xl border border-[var(--accent-strong)] bg-[rgba(0,209,127,0.08)] px-4 py-2 text-sm font-medium">
+            <div className="rounded-lg border border-[var(--accent-strong)] bg-[var(--accent-strong)]/8 px-4 py-2 text-sm font-medium">
               Need {Math.max(0, target - (currentInnings?.runs ?? 0))} off{' '}
               {((currentInnings?.overs_allocated ?? 0) - (currentInnings?.overs_bowled ?? 0)).toFixed(1)} ov
             </div>
@@ -421,12 +419,12 @@ export function ScoringConsolePage() {
       )}
 
       {/* This over strip */}
-      <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-4">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          <p className="text-xs font-medium text-[var(--text-muted)]">
             Over {currentOver} — Ball {currentBall}
           </p>
-          <p className="text-sm font-medium text-[var(--accent)]">
+          <p className="text-sm font-bold text-[var(--accent)]">
             {currentInnings ? `${currentInnings.runs}/${currentInnings.wickets}` : '—'}
           </p>
         </div>
@@ -449,8 +447,8 @@ export function ScoringConsolePage() {
       {/* Scoring controls */}
       <div className="grid gap-4 md:grid-cols-[1fr_auto]">
         {/* Run buttons */}
-        <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-4">
-          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Runs</p>
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
+          <p className="mb-3 text-xs font-medium text-[var(--text-muted)]">Runs</p>
           <div className="grid grid-cols-6 gap-2">
             {RUN_BUTTONS.map((r) => (
               <button
@@ -458,12 +456,12 @@ export function ScoringConsolePage() {
                 type="button"
                 disabled={submitting}
                 onClick={() => handleRecordBall(r)}
-                className={`flex h-14 items-center justify-center rounded-xl border text-xl font-bold transition active:scale-95 disabled:opacity-50 ${
+                className={`flex h-14 items-center justify-center rounded-lg border text-xl font-bold transition active:scale-95 disabled:opacity-50 ${
                   r === 4
-                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
+                    ? 'border-blue-500/25 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
                     : r === 6
-                      ? 'border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
-                      : 'border-[var(--line)] bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)]'
+                      ? 'border-purple-500/25 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20'
+                      : 'border-[var(--line)] bg-[var(--bg-surface)] hover:bg-[var(--line)]'
                 }`}
               >
                 {r}
@@ -472,16 +470,16 @@ export function ScoringConsolePage() {
           </div>
 
           {/* Extras */}
-          <p className="mb-2 mt-4 text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Extras</p>
+          <p className="mb-2 mt-4 text-xs font-medium text-[var(--text-muted)]">Extras</p>
           <div className="flex flex-wrap gap-2">
             {EXTRAS.map((e) => (
               <button
                 key={e}
                 type="button"
                 onClick={() => setSelectedExtras(selectedExtras === e ? null : e)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
                   selectedExtras === e
-                    ? 'border-amber-400 bg-amber-500/15 text-amber-300'
+                    ? 'border-amber-400 bg-amber-500/15 text-amber-400'
                     : 'border-[var(--line)] text-[var(--text-muted)] hover:border-amber-400'
                 }`}
               >
@@ -491,16 +489,16 @@ export function ScoringConsolePage() {
           </div>
 
           {/* Wicket */}
-          <p className="mb-2 mt-4 text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Wicket</p>
+          <p className="mb-2 mt-4 text-xs font-medium text-[var(--text-muted)]">Wicket</p>
           <div className="flex flex-wrap gap-2">
             {WICKETS.map((w) => (
               <button
                 key={w}
                 type="button"
                 onClick={() => setSelectedWicket(selectedWicket === w ? null : w)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
                   selectedWicket === w
-                    ? 'border-red-400 bg-red-500/15 text-red-300'
+                    ? 'border-red-400 bg-red-500/15 text-red-400'
                     : 'border-[var(--line)] text-[var(--text-muted)] hover:border-red-400'
                 }`}
               >
@@ -510,10 +508,10 @@ export function ScoringConsolePage() {
           </div>
 
           {(selectedExtras || selectedWicket) && (
-            <div className="mt-3 rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+            <div className="mt-3 rounded-md border border-dashed border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
               Next ball: {selectedExtras && <strong>{selectedExtras}</strong>}
               {selectedExtras && selectedWicket && ' + '}
-              {selectedWicket && <strong className="text-red-300">{selectedWicket}</strong>}
+              {selectedWicket && <strong className="text-red-400">{selectedWicket}</strong>}
               {' — tap a run button to record'}
             </div>
           )}
@@ -521,15 +519,15 @@ export function ScoringConsolePage() {
 
         {/* Live share link */}
         <div className="flex flex-col gap-3 md:w-48">
-          <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-[var(--accent)]">Live Link</p>
+          <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
+            <p className="text-xs font-medium text-[var(--accent)]">Live Link</p>
             <p className="mt-2 break-all text-xs text-[var(--text-muted)]">
               {window.location.origin}/live/{matchId}
             </p>
             <button
               type="button"
               onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/live/${matchId}`)}
-              className="mt-2 w-full rounded-lg border border-[var(--line)] py-1.5 text-xs text-[var(--text-muted)] hover:border-[var(--accent)]"
+              className="mt-2 w-full rounded-md border border-[var(--line)] py-1.5 text-xs text-[var(--text-muted)] hover:border-[var(--accent)]"
             >
               Copy Link
             </button>
@@ -537,7 +535,7 @@ export function ScoringConsolePage() {
           <button
             type="button"
             onClick={() => navigate('/dashboard')}
-            className="rounded-xl border border-[var(--line)] py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
+            className="rounded-lg border border-[var(--line)] py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
           >
             ← Dashboard
           </button>
@@ -568,21 +566,21 @@ function MatchHeader({
   target?: number | null
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[rgba(15,36,52,0.72)] px-5 py-4">
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--accent)]">
-            {match.status === 'live' ? '● LIVE' : match.status.toUpperCase()}
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
+            {match.status === 'live' ? 'LIVE' : match.status.toUpperCase()}
           </p>
-          <h2 className="mt-1 text-xl font-extrabold">
+          <h2 className="mt-1 text-lg font-bold">
             {match.team_a_name} vs {match.team_b_name ?? 'TBD'}
           </h2>
           {match.venue && <p className="text-sm text-[var(--text-muted)]">{match.venue}</p>}
         </div>
         {innings && (
           <div className="text-right">
-            <p className="text-3xl font-extrabold">
-              {innings.runs}<span className="text-lg text-[var(--text-muted)]">/{innings.wickets}</span>
+            <p className="text-2xl font-bold">
+              {innings.runs}<span className="text-base text-[var(--text-muted)]">/{innings.wickets}</span>
             </p>
             <p className="text-sm text-[var(--text-muted)]">{innings.overs_bowled} overs</p>
           </div>
@@ -610,8 +608,8 @@ function TossView({
   error: string
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6">
-      <h3 className="text-xl font-bold">Toss</h3>
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
+      <h3 className="text-lg font-bold">Toss</h3>
       <p className="mt-1 text-sm text-[var(--text-muted)]">Record who won the toss and their decision</p>
 
       <div className="mt-4 space-y-4">
@@ -623,8 +621,8 @@ function TossView({
                 key={t}
                 type="button"
                 onClick={() => onSetWinner(t)}
-                className={`rounded-xl border p-3 text-sm font-medium transition ${
-                  tossWinner === t ? 'border-[var(--accent)] bg-[rgba(11,176,245,0.1)]' : 'border-[var(--line)]'
+                className={`rounded-lg border p-3 text-sm font-medium transition ${
+                  tossWinner === t ? 'border-[var(--accent)] bg-[var(--accent)]/8' : 'border-[var(--line)]'
                 }`}
               >
                 {t === 'A' ? match.team_a_name : match.team_b_name ?? 'Team B'}
@@ -641,8 +639,8 @@ function TossView({
                 key={d}
                 type="button"
                 onClick={() => onSetDecision(d)}
-                className={`rounded-xl border p-3 text-sm font-medium transition ${
-                  tossDecision === d ? 'border-[var(--accent-strong)] bg-[rgba(0,209,127,0.08)]' : 'border-[var(--line)]'
+                className={`rounded-lg border p-3 text-sm font-medium transition ${
+                  tossDecision === d ? 'border-[var(--accent-strong)] bg-[var(--accent-strong)]/8' : 'border-[var(--line)]'
                 }`}
               >
                 {d.charAt(0).toUpperCase() + d.slice(1)}
@@ -655,7 +653,7 @@ function TossView({
 
         <button
           onClick={onSubmit}
-          className="w-full rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] py-2.5 font-semibold text-slate-900"
+          className="w-full rounded-lg bg-[var(--accent)] py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
         >
           Confirm Toss
         </button>
@@ -689,14 +687,14 @@ function PreMatchView({
           const players = teamInfo?.players
           const teamName = teamInfo?.name ?? (team === 'A' ? match.team_a_name : (match.team_b_name ?? 'Team B'))
           return (
-            <div key={team} className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-5">
+            <div key={team} className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold">{teamName}</h3>
                 <span className="text-xs text-[var(--text-muted)]">{teamInfo?.count ?? 0} players</span>
               </div>
               <div className="mt-3 space-y-2">
                 {players?.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between rounded-lg border border-[var(--line)] px-3 py-2">
+                  <div key={p.id} className="flex items-center justify-between rounded-md border border-[var(--line)] px-3 py-2">
                     <span className="text-sm">{p.display_name ?? p.guest_name ?? 'Player'}</span>
                     <span className="text-xs text-[var(--text-muted)]">{p.role}</span>
                   </div>
@@ -708,7 +706,7 @@ function PreMatchView({
               <button
                 type="button"
                 onClick={() => onAddPlayer(team)}
-                className="mt-3 w-full rounded-xl border border-dashed border-[var(--line)] py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                className="mt-3 w-full rounded-lg border border-dashed border-[var(--line)] py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
               >
                 + Add Player
               </button>
@@ -720,7 +718,7 @@ function PreMatchView({
       <div className="flex gap-3">
         <button
           onClick={onTeamReady}
-          className="rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-6 py-2.5 font-semibold text-slate-900"
+          className="rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
         >
           Mark Team Ready
         </button>
@@ -737,17 +735,17 @@ function MatchFinishedView({ match, innings }: { match: MatchResponse; innings: 
 
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-[var(--line)] bg-[rgba(15,36,52,0.72)] p-6 text-center">
-        <p className="text-xs uppercase tracking-[0.18em] text-[var(--accent-strong)]">Match Complete</p>
-        <h2 className="mt-3 text-3xl font-extrabold">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-strong)]">Match Complete</p>
+        <h2 className="mt-3 text-2xl font-bold">
           {match.team_a_name} vs {match.team_b_name}
         </h2>
 
         {result && (
           <div className="mt-4">
-            <p className="text-xl font-bold">
+            <p className="text-lg font-bold">
               {result.winner === 'tie'
-                ? 'Match Tied!'
+                ? 'Match Tied'
                 : `Team ${result.winner === 'A' ? match.team_a_name : match.team_b_name} won by ${result.winning_margin} ${result.winning_type}`}
             </p>
           </div>
@@ -755,11 +753,11 @@ function MatchFinishedView({ match, innings }: { match: MatchResponse; innings: 
 
         <div className="mt-6 flex justify-center gap-4">
           {innings.map((inn) => (
-            <div key={inn.id} className="rounded-xl border border-[var(--line)] bg-[rgba(8,20,31,0.6)] px-6 py-4">
+            <div key={inn.id} className="rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-6 py-4">
               <p className="text-xs text-[var(--text-muted)]">
                 {inn.batting_team === 'A' ? match.team_a_name : match.team_b_name}
               </p>
-              <p className="mt-1 text-2xl font-extrabold">
+              <p className="mt-1 text-xl font-bold">
                 {inn.runs}/{inn.wickets}
               </p>
               <p className="text-sm text-[var(--text-muted)]">{inn.overs_bowled} overs</p>
@@ -770,13 +768,13 @@ function MatchFinishedView({ match, innings }: { match: MatchResponse; innings: 
         <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/live/${match.id}`)}
-            className="rounded-xl border border-[var(--line)] px-5 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
+            className="rounded-lg border border-[var(--line)] px-5 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
           >
             Share Result
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-5 py-2 font-semibold text-slate-900"
+            className="rounded-lg bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
           >
             Dashboard
           </button>

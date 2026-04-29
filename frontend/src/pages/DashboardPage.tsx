@@ -11,16 +11,16 @@ import type { MatchResponse } from '../lib/api/matches'
 function statusBadge(s: string) {
   switch (s) {
     case 'live':
-      return { label: '● LIVE', cls: 'bg-green-500/15 text-green-300 border-green-500/30' }
+      return { label: 'LIVE', cls: 'bg-red-500/15 text-red-400 border-red-500/30' }
     case 'finished':
-      return { label: 'FINISHED', cls: 'bg-[rgba(255,255,255,0.06)] text-[var(--text-muted)] border-[var(--line)]' }
+      return { label: 'FINISHED', cls: 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--line)]' }
     case 'created':
     case 'accepted':
     case 'teams_ready':
     case 'toss_done':
-      return { label: 'SETUP', cls: 'bg-amber-500/10 text-amber-300 border-amber-500/25' }
+      return { label: 'SETUP', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/25' }
     default:
-      return { label: s.toUpperCase(), cls: 'bg-[rgba(255,255,255,0.06)] text-[var(--text-muted)] border-[var(--line)]' }
+      return { label: s.toUpperCase(), cls: 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--line)]' }
   }
 }
 
@@ -69,14 +69,14 @@ export function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-[var(--accent)]">Dashboard</p>
-          <h2 className="mt-1 text-2xl font-extrabold">
+          <h2 className="text-xl font-bold">
             Welcome{user?.full_name ? `, ${user.full_name}` : ''}
           </h2>
+          <p className="mt-0.5 text-sm text-[var(--text-muted)]">Match overview and quick actions</p>
         </div>
         <button
           onClick={handleLogout}
-          className="rounded-xl border border-[var(--line)] px-4 py-1.5 text-sm text-[var(--text-muted)] hover:border-red-400 hover:text-red-400 transition"
+          className="rounded-lg border border-[var(--line)] px-4 py-1.5 text-sm text-[var(--text-muted)] hover:border-red-400 hover:text-red-400 transition"
         >
           Sign out
         </button>
@@ -108,22 +108,22 @@ export function DashboardPage() {
       <div className="flex flex-wrap gap-3">
         <button
           onClick={() => navigate('/matches/new')}
-          className="rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-6 py-2.5 font-semibold text-slate-900 transition hover:opacity-90 active:scale-[0.98]"
+          className="rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] active:scale-[0.98]"
         >
           + New Match
         </button>
         <button
           onClick={() => navigate('/profile')}
-          className="rounded-xl border border-[var(--line)] px-5 py-2.5 text-sm font-medium text-[var(--text-muted)] hover:border-[var(--accent)] transition"
+          className="rounded-lg border border-[var(--line)] px-5 py-2.5 text-sm font-medium text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text-primary)] transition"
         >
           Edit Profile
         </button>
       </div>
 
       {/* Recent matches */}
-      <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-5">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-5">
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Recent Matches</p>
+          <h3 className="text-sm font-semibold text-[var(--text-muted)]">Recent Matches</h3>
           {matches.length > 5 && (
             <button className="text-xs text-[var(--accent)] hover:underline">View all</button>
           )}
@@ -137,9 +137,9 @@ export function DashboardPage() {
 
         {!matchesLoading && recentMatches.length === 0 && (
           <div className="py-10 text-center">
-            <p className="text-lg font-medium text-[var(--text-muted)]">No matches yet</p>
+            <p className="text-base font-medium text-[var(--text-muted)]">No matches yet</p>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
-              Create your first match and start scoring!
+              Create your first match and start scoring.
             </p>
           </div>
         )}
@@ -163,9 +163,9 @@ export function DashboardPage() {
 
 function StatCard({ label, value, accent, small }: { label: string; value: string; accent?: boolean; small?: boolean }) {
   return (
-    <article className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.8)] p-5">
-      <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">{label}</p>
-      <h3 className={`mt-2 font-extrabold ${small ? 'text-lg' : 'text-3xl'} ${accent ? 'text-[var(--accent-strong)]' : ''}`}>
+    <article className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
+      <p className="text-xs font-medium text-[var(--text-muted)]">{label}</p>
+      <h3 className={`mt-1.5 font-bold ${small ? 'text-base' : 'text-2xl'} ${accent ? 'text-[var(--accent-strong)]' : ''}`}>
         {value}
       </h3>
     </article>
@@ -178,17 +178,17 @@ function MatchCard({ match, onClick }: { match: MatchResponse; onClick: () => vo
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full items-center gap-4 rounded-xl border border-[var(--line)] bg-[rgba(255,255,255,0.02)] px-4 py-3 text-left transition hover:border-[var(--accent)] hover:bg-[rgba(11,176,245,0.04)]"
+      className="group flex w-full items-center gap-4 rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-4 py-3 text-left transition hover:border-[var(--accent)] hover:bg-[var(--bg-surface)]"
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">
+        <p className="truncate text-sm font-semibold">
           {match.team_a_name} vs {match.team_b_name ?? 'TBD'}
         </p>
         {match.venue && (
           <p className="truncate text-xs text-[var(--text-muted)]">{match.venue}</p>
         )}
       </div>
-      <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold tracking-wider ${badge.cls}`}>
+      <span className={`shrink-0 rounded border px-2 py-0.5 text-[10px] font-bold tracking-wider ${badge.cls}`}>
         {badge.label}
       </span>
       <span className="shrink-0 text-xs text-[var(--text-muted)]">

@@ -16,8 +16,8 @@ const profileSchema = z.object({
 type ProfileInput = z.infer<typeof profileSchema>
 
 const BATTING_OPTIONS = [
-  { value: 'right-handed', label: 'Right-Handed', icon: '🏏' },
-  { value: 'left-handed', label: 'Left-Handed', icon: '🏏' },
+  { value: 'right-handed', label: 'Right-Handed' },
+  { value: 'left-handed', label: 'Left-Handed' },
 ] as const
 
 const BOWLING_OPTIONS = [
@@ -62,27 +62,27 @@ export function ProfileSetupPage() {
   return (
     <section className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
       {/* Left — Hero info */}
-      <article className="rounded-2xl border border-[var(--line)] bg-[rgba(15,36,52,0.72)] p-6 lg:p-8">
-        <p className="text-xs uppercase tracking-[0.22em] text-[var(--accent-strong)]">Step 1 of 1</p>
-        <h2 className="mt-3 text-3xl font-extrabold leading-tight lg:text-4xl">
+      <article className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6 lg:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Player Profile</p>
+        <h2 className="mt-3 text-2xl font-bold leading-tight lg:text-3xl">
           Build Your Cricket Identity
         </h2>
-        <p className="mt-4 max-w-lg text-[var(--text-muted)] leading-relaxed">
+        <p className="mt-4 max-w-lg text-sm text-[var(--text-muted)] leading-relaxed">
           Your profile powers match assignments, player search, and career statistics.
           Other captains will see your playing style when you're invited to matches.
         </p>
 
         {/* Stats preview card */}
-        <div className="mt-8 rounded-xl border border-[var(--line)] bg-[rgba(8,20,31,0.6)] p-5">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Profile Preview</p>
+        <div className="mt-8 rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] p-5">
+          <p className="text-xs font-medium text-[var(--text-muted)]">Profile Preview</p>
           <div className="mt-3 flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0bb0f5,#00d17f)] text-xl font-bold text-slate-900">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent)] text-lg font-bold text-white">
               {user?.full_name?.charAt(0)?.toUpperCase() ?? '?'}
             </div>
             <div>
               <p className="font-semibold">{user?.full_name ?? 'Player'}</p>
               <p className="text-sm text-[var(--text-muted)]">
-                {selectedBat === 'right-handed' ? 'RHB' : 'LHB'} • {selectedBowl === 'none' ? 'Non-bowler' : selectedBowl.charAt(0).toUpperCase() + selectedBowl.slice(1)}
+                {selectedBat === 'right-handed' ? 'RHB' : 'LHB'} · {selectedBowl === 'none' ? 'Non-bowler' : selectedBowl.charAt(0).toUpperCase() + selectedBowl.slice(1)}
               </p>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function ProfileSetupPage() {
               { label: 'Runs', value: '0' },
               { label: 'Wickets', value: '0' },
             ].map((s) => (
-              <div key={s.label} className="rounded-lg bg-[rgba(255,255,255,0.03)] px-3 py-2 text-center">
+              <div key={s.label} className="rounded-md bg-[var(--bg-surface)] px-3 py-2 text-center">
                 <p className="text-lg font-bold">{s.value}</p>
                 <p className="text-xs text-[var(--text-muted)]">{s.label}</p>
               </div>
@@ -102,19 +102,19 @@ export function ProfileSetupPage() {
       </article>
 
       {/* Right — Form */}
-      <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
         {success ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(0,209,127,0.15)] text-3xl">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent)]/15 text-2xl text-[var(--accent-strong)]">
               ✓
             </div>
-            <h3 className="text-xl font-bold">Profile Saved</h3>
+            <h3 className="text-lg font-bold">Profile Saved</h3>
             <p className="mt-2 text-sm text-[var(--text-muted)]">Redirecting to dashboard…</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit(submit)} className="space-y-6">
             <div>
-              <h3 className="text-lg font-bold">Playing Style</h3>
+              <h3 className="text-base font-bold">Playing Style</h3>
               <p className="mt-1 text-sm text-[var(--text-muted)]">Choose how you play</p>
             </div>
 
@@ -125,20 +125,19 @@ export function ProfileSetupPage() {
                 {BATTING_OPTIONS.map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
                       selectedBat === opt.value
-                        ? 'border-[var(--accent)] bg-[rgba(11,176,245,0.1)]'
+                        ? 'border-[var(--accent)] bg-[var(--accent)]/8'
                         : 'border-[var(--line)] hover:border-[var(--accent)]'
                     }`}
                   >
                     <input type="radio" value={opt.value} {...register('batting_style')} className="sr-only" />
-                    <span className={`text-lg ${selectedBat === opt.value ? '' : 'grayscale'}`}>{opt.icon}</span>
                     <span className="text-sm font-medium">{opt.label}</span>
                   </label>
                 ))}
               </div>
               {formState.errors.batting_style && (
-                <p className="mt-1 text-xs text-red-300">{formState.errors.batting_style.message}</p>
+                <p className="mt-1 text-xs text-red-400">{formState.errors.batting_style.message}</p>
               )}
             </fieldset>
 
@@ -149,9 +148,9 @@ export function ProfileSetupPage() {
                 {BOWLING_OPTIONS.map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex cursor-pointer flex-col rounded-xl border p-3 transition ${
+                    className={`flex cursor-pointer flex-col rounded-lg border p-3 transition ${
                       selectedBowl === opt.value
-                        ? 'border-[var(--accent-strong)] bg-[rgba(0,209,127,0.08)]'
+                        ? 'border-[var(--accent-strong)] bg-[var(--accent-strong)]/8'
                         : 'border-[var(--line)] hover:border-[var(--accent-strong)]'
                     }`}
                   >
@@ -162,7 +161,7 @@ export function ProfileSetupPage() {
                 ))}
               </div>
               {formState.errors.bowling_style && (
-                <p className="mt-1 text-xs text-red-300">{formState.errors.bowling_style.message}</p>
+                <p className="mt-1 text-xs text-red-400">{formState.errors.bowling_style.message}</p>
               )}
             </fieldset>
 
@@ -173,9 +172,9 @@ export function ProfileSetupPage() {
                 {(['right', 'left'] as const).map((h) => (
                   <label
                     key={h}
-                    className={`flex cursor-pointer items-center justify-center rounded-xl border p-3 text-sm font-medium transition ${
+                    className={`flex cursor-pointer items-center justify-center rounded-lg border p-3 text-sm font-medium transition ${
                       watch('dominant_hand') === h
-                        ? 'border-[var(--accent)] bg-[rgba(11,176,245,0.1)]'
+                        ? 'border-[var(--accent)] bg-[var(--accent)]/8'
                         : 'border-[var(--line)] hover:border-[var(--accent)]'
                     }`}
                   >
@@ -191,7 +190,7 @@ export function ProfileSetupPage() {
             <button
               type="submit"
               disabled={formState.isSubmitting}
-              className="w-full rounded-xl bg-[linear-gradient(90deg,#0bb0f5,#00d17f)] px-4 py-2.5 font-semibold text-slate-900 transition hover:opacity-90 disabled:opacity-50"
+              className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
             >
               {formState.isSubmitting ? 'Saving…' : 'Save & Continue'}
             </button>

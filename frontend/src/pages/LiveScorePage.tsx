@@ -26,11 +26,11 @@ function ballColor(b: {
   extras_type: string | null
   wicket_type: string | null
 }) {
-  if (b.wicket_type) return 'bg-red-500/20 text-red-300 border-red-500/40'
-  if (b.extras_type) return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-  if (b.runs_off_bat === 4) return 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-  if (b.runs_off_bat === 6) return 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-  return 'bg-[rgba(255,255,255,0.05)] border-[var(--line)]'
+  if (b.wicket_type) return 'bg-red-500/15 text-red-400 border-red-500/30'
+  if (b.extras_type) return 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+  if (b.runs_off_bat === 4) return 'bg-blue-500/10 text-blue-400 border-blue-500/25'
+  if (b.runs_off_bat === 6) return 'bg-purple-500/10 text-purple-400 border-purple-500/25'
+  return 'bg-[var(--bg-surface)] border-[var(--line)]'
 }
 
 // ── Page ────────────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ export function LiveScorePage() {
     queryKey: ['live-score', matchId],
     queryFn: () => fetchLiveScore(matchId!),
     enabled: !!matchId,
-    refetchInterval: 15_000, // fallback poll every 15s
+    refetchInterval: 15_000,
   })
 
   // ── Balls for the current innings ─────────────────────────────────────
@@ -96,7 +96,7 @@ export function LiveScorePage() {
   if (isError || !live) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <p className="text-lg font-bold">Match not found</p>
+        <p className="text-base font-bold">Match not found</p>
         <p className="mt-2 text-sm text-[var(--text-muted)]">
           This match may have been removed or the link is invalid.
         </p>
@@ -124,8 +124,8 @@ export function LiveScorePage() {
       {/* Connection badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`h-2 w-2 rounded-full ${isLive ? 'animate-pulse bg-green-400' : 'bg-[var(--text-muted)]'}`} />
-          <span className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          <div className={`h-2 w-2 rounded-full ${isLive ? 'animate-pulse bg-red-500' : 'bg-[var(--text-muted)]'}`} />
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             {isFinished ? 'COMPLETED' : isLive ? 'LIVE' : live.status.toUpperCase()}
           </span>
         </div>
@@ -137,20 +137,20 @@ export function LiveScorePage() {
       </div>
 
       {/* Main scoreboard */}
-      <div className="rounded-2xl border border-[var(--line)] bg-[rgba(15,36,52,0.72)] p-6">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs uppercase tracking-[0.18em] text-[var(--accent)]">
+            <p className="truncate text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
               {live.match_type.replace('_', ' ')}
             </p>
-            <h1 className="mt-1 text-2xl font-extrabold">
+            <h1 className="mt-1 text-xl font-bold">
               {live.team_a_name}
             </h1>
-            <p className="text-lg text-[var(--text-muted)]">
+            <p className="text-base text-[var(--text-muted)]">
               vs {live.team_b_name ?? 'TBD'}
             </p>
             {live.venue && (
-              <p className="mt-1 text-sm text-[var(--text-muted)]">📍 {live.venue}</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">{live.venue}</p>
             )}
           </div>
           {live.toss_winner && (
@@ -169,30 +169,30 @@ export function LiveScorePage() {
           return (
             <div
               key={inn.id}
-              className={`relative overflow-hidden rounded-2xl border p-5 ${
+              className={`relative overflow-hidden rounded-lg border p-5 ${
                 isCurrent
-                  ? 'border-[var(--accent)] bg-[rgba(11,176,245,0.06)]'
-                  : 'border-[var(--line)] bg-[rgba(8,20,31,0.86)]'
+                  ? 'border-[var(--accent)] bg-[var(--accent)]/6'
+                  : 'border-[var(--line)] bg-[var(--bg-mid)]'
               }`}
             >
               {isCurrent && (
-                <span className="absolute right-3 top-3 flex h-5 items-center rounded-full bg-green-500/20 px-2 text-[10px] font-semibold text-green-300">
+                <span className="absolute right-3 top-3 flex h-5 items-center rounded bg-[var(--accent-strong)]/15 px-2 text-[10px] font-bold text-[var(--accent-strong)]">
                   BATTING
                 </span>
               )}
-              <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
+              <p className="text-xs font-medium text-[var(--text-muted)]">
                 {i === 0 ? '1st Innings' : '2nd Innings'}
               </p>
               <p className="mt-1 font-medium">{teamName}</p>
-              <p className="mt-2 text-4xl font-extrabold">
+              <p className="mt-2 text-3xl font-bold">
                 {inn.runs}
-                <span className="text-xl text-[var(--text-muted)]">/{inn.wickets}</span>
+                <span className="text-lg text-[var(--text-muted)]">/{inn.wickets}</span>
               </p>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
                 {inn.overs} / {inn.overs_allocated} overs · RR {inn.run_rate.toFixed(2)}
               </p>
               {inn.is_completed && (
-                <span className="mt-2 inline-block rounded-md bg-[rgba(255,255,255,0.06)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                <span className="mt-2 inline-block rounded bg-[var(--bg-surface)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                   Completed
                 </span>
               )}
@@ -203,7 +203,7 @@ export function LiveScorePage() {
 
       {/* Target banner */}
       {live.target && isLive && currentInnings && !currentInnings.is_completed && (
-        <div className="rounded-xl border border-[var(--accent-strong)] bg-[rgba(0,209,127,0.06)] px-5 py-3 text-center">
+        <div className="rounded-lg border border-[var(--accent-strong)] bg-[var(--accent-strong)]/8 px-5 py-3 text-center">
           <span className="text-sm font-medium">
             Need <strong className="text-[var(--accent-strong)]">
               {Math.max(0, live.target - currentInnings.runs)}
@@ -219,10 +219,10 @@ export function LiveScorePage() {
 
       {/* Result banner */}
       {isFinished && live.result && (
-        <div className="rounded-xl border border-[var(--accent-strong)] bg-[rgba(0,209,127,0.08)] px-5 py-4 text-center">
-          <p className="text-lg font-bold">
+        <div className="rounded-lg border border-[var(--accent-strong)] bg-[var(--accent-strong)]/8 px-5 py-4 text-center">
+          <p className="text-base font-bold">
             {live.result.winner === 'tie'
-              ? 'Match Tied!'
+              ? 'Match Tied'
               : `Team ${live.result.winner === 'A' ? live.team_a_name : live.team_b_name} won by ${live.result.winning_margin} ${live.result.winning_type}`}
           </p>
         </div>
@@ -230,8 +230,8 @@ export function LiveScorePage() {
 
       {/* Over-by-over timeline */}
       {overNumbers.length > 0 && (
-        <div className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-5">
-          <p className="mb-4 text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-5">
+          <p className="mb-4 text-xs font-medium text-[var(--text-muted)]">
             Over Timeline
           </p>
           <div className="space-y-3">
@@ -257,7 +257,7 @@ export function LiveScorePage() {
                   <span className="ml-auto text-xs text-[var(--text-muted)]">
                     {ovRuns} run{ovRuns !== 1 ? 's' : ''}
                     {ovWickets > 0 && (
-                      <>, <span className="text-red-300">{ovWickets}W</span></>
+                      <>, <span className="text-red-400">{ovWickets}W</span></>
                     )}
                   </span>
                 </div>
@@ -274,8 +274,8 @@ export function LiveScorePage() {
             { name: live.team_a_name, players: live.team_a },
             { name: live.team_b_name ?? 'Team B', players: live.team_b },
           ].map((team) => (
-            <div key={team.name} className="rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-4">
-              <p className="mb-2 text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">{team.name}</p>
+            <div key={team.name} className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
+              <p className="mb-2 text-xs font-medium text-[var(--text-muted)]">{team.name}</p>
               <div className="space-y-1.5">
                 {team.players?.map((p, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
@@ -296,7 +296,7 @@ export function LiveScorePage() {
       <div className="flex items-center justify-center gap-3 pb-8">
         <button
           onClick={() => navigator.clipboard?.writeText(window.location.href)}
-          className="rounded-xl border border-[var(--line)] px-5 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
+          className="rounded-lg border border-[var(--line)] px-5 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--accent)]"
         >
           Copy Link
         </button>
