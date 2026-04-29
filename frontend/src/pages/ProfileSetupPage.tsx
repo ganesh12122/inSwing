@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
-import { updateProfile } from '../lib/api/users'
+import { useQuery } from '@tanstack/react-query'
+import { getUserProfile, updateProfile } from '../lib/api/users'
 import { authStore } from '../lib/auth-store'
 import type { AxiosError } from 'axios'
 
@@ -33,7 +34,13 @@ export function ProfileSetupPage() {
   const [serverError, setServerError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  const { register, handleSubmit, formState, watch } = useForm<ProfileInput>({
+  const { data: profileData } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: () => getUserProfile(user!.id),
+    enabled: !!user?.id,
+  })
+
+  const { register, handleSubmit, formState, watch, reset } = useForm<ProfileInput>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       batting_style: 'right-handed',
@@ -41,6 +48,17 @@ export function ProfileSetupPage() {
       dominant_hand: 'right',
     },
   })
+
+  useEffect(() => {
+    const p = profileData?.profile
+    if (p) {
+      reset({
+        batting_style: (p.batting_style as ProfileInput['batting_style']) ?? 'right-handed',
+        bowling_style: (p.bowling_style as ProfileInput['bowling_style']) ?? 'fast',
+        dominant_hand: (p.dominant_hand as ProfileInput['dominant_hand']) ?? 'right',
+      })
+    }
+  }, [profileData, reset])
 
   const selectedBat = watch('batting_style')
   const selectedBowl = watch('bowling_style')
