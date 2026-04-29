@@ -115,8 +115,6 @@ function AddPlayerModal({
 export function ScoringConsolePage() {
   const { matchId } = useParams<{ matchId: string }>()
   const navigate = useNavigate()
-  const _queryClient = useQueryClient()
-  void _queryClient // reserved for future undo
   const wsRef = useRef<ReturnType<typeof createMatchSocket> | null>(null)
 
   // ── State ───────────────────────────────────────────────────────────────

@@ -225,7 +225,7 @@ export function MatchStudioPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(submit)} className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <form onSubmit={handleSubmit(submit as never)} className="grid gap-6 lg:grid-cols-[1fr_1fr]">
         {/* Left column — Teams */}
         <div className="space-y-5 rounded-2xl border border-[var(--line)] bg-[rgba(8,20,31,0.86)] p-6">
           <h3 className="text-lg font-bold">Teams & Venue</h3>
