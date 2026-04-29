@@ -4,6 +4,8 @@ import { AuthPage } from '../pages/AuthPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { MatchStudioPage } from '../pages/MatchStudioPage'
 import { ProfileSetupPage } from '../pages/ProfileSetupPage'
+import { ScoringConsolePage } from '../pages/ScoringConsolePage'
+import { LiveScorePage } from '../pages/LiveScorePage'
 import { authStore } from '../lib/auth-store'
 
 function RequireAuth() {
@@ -24,12 +26,16 @@ const router = createBrowserRouter([
         element: <RedirectIfAuthed />,
         children: [{ path: 'auth', element: <AuthPage /> }],
       },
+      // Public — no auth required
+      { path: 'live/:matchId', element: <LiveScorePage /> },
       {
         element: <RequireAuth />,
         children: [
           { path: 'profile/setup', element: <ProfileSetupPage /> },
+          { path: 'profile', element: <ProfileSetupPage /> },
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'matches/new', element: <MatchStudioPage /> },
+          { path: 'match/:matchId/scoring', element: <ScoringConsolePage /> },
         ],
       },
     ],
