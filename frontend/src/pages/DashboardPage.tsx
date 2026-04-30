@@ -165,12 +165,25 @@ function RecentMatchCard({ match, onClick }: { match: MatchResponse; onClick: ()
   const statusColors: Record<string, string> = {
     live: 'text-red-400 bg-red-500/10 border-red-500/30',
     finished: 'text-[#becabc] bg-[#1b211c] border-[#3e4a3f]',
+    invited: 'text-purple-400 bg-purple-500/10 border-purple-500/25',
     created: 'text-amber-400 bg-amber-500/10 border-amber-500/25',
     accepted: 'text-amber-400 bg-amber-500/10 border-amber-500/25',
     teams_ready: 'text-blue-400 bg-blue-500/10 border-blue-500/25',
     toss_done: 'text-blue-400 bg-blue-500/10 border-blue-500/25',
   }
   const cls = statusColors[match.status] ?? statusColors.created
+
+  const statusLabel = (() => {
+    switch (match.status) {
+      case 'live': return 'LIVE'
+      case 'finished': return 'FINAL'
+      case 'invited': return 'INVITED'
+      case 'accepted': return 'ACCEPTED'
+      case 'teams_ready': return 'TEAMS READY'
+      case 'toss_done': return 'TOSS DONE'
+      default: return 'SETUP'
+    }
+  })()
 
   return (
     <button
@@ -187,7 +200,7 @@ function RecentMatchCard({ match, onClick }: { match: MatchResponse; onClick: ()
       </div>
       <div className="text-right shrink-0">
         <span className={`inline-block rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${cls}`}>
-          {match.status === 'live' ? 'LIVE' : match.status === 'finished' ? 'FINAL' : 'SETUP'}
+          {statusLabel}
         </span>
         <p className="mt-1 text-[10px] text-[#889488]">{timeAgo(match.updated_at)}</p>
       </div>

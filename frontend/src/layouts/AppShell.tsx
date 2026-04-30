@@ -1,5 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { authStore } from '../lib/auth-store'
+import { getUnreadCount } from '../lib/api/notifications'
 import { Home, Trophy, PlusCircle, Users, User, Bell } from 'lucide-react'
 
 const navItems = [
@@ -19,6 +21,13 @@ export function AppShell() {
   const isMatchSetup = location.pathname.includes('/setup')
 
   const hideChrome = isAuthPage || isPublicLive || isScoringConsole || isMatchSetup
+
+  const { data: unreadCount } = useQuery({
+    queryKey: ['unread-notifications'],
+    queryFn: getUnreadCount,
+    enabled: isAuthed && !hideChrome,
+    refetchInterval: 30_000,
+  })
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -64,6 +73,11 @@ export function AppShell() {
                 className="relative flex h-9 w-9 items-center justify-center rounded-lg text-[#becabc] transition hover:bg-white/5 hover:text-white"
               >
                 <Bell size={18} />
+                {!!unreadCount && unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </Link>
             </div>
           </div>

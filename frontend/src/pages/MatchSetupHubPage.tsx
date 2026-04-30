@@ -8,9 +8,11 @@ import {
   markTeamReady,
   recordToss,
   inviteOpponent,
+  acceptInvitation,
   createInnings,
 } from '../lib/api/matches'
-import { ArrowLeft, Check, CheckCircle, Coins } from 'lucide-react'
+import { ArrowLeft, Check, CheckCircle, Coins, Clock } from 'lucide-react'
+import { authStore } from '../lib/auth-store'
 import type { MatchRules } from '../lib/api/matches'
 import type { AxiosError } from 'axios'
 
@@ -36,11 +38,11 @@ export function MatchSetupHubPage() {
   // Determine current step from match status
   const getStepIndex = (): number => {
     if (!match) return 0
-    if (match.status === 'created') return 0
+    if (match.status === 'created' || match.status === 'invited') return 0
     if (match.status === 'accepted' || match.status === 'teams_ready') return 1
     if (match.status === 'rules_proposed' || match.status === 'rules_approved') return 2
     if (match.status === 'toss_done') return 3
-    return 3
+    return 0
   }
 
   const currentStep = getStepIndex()
@@ -137,13 +139,17 @@ export function MatchSetupHubPage() {
 
 function InviteStep({ matchId, match, error, setError, onDone }: {
   matchId: string
-  match: { team_a_name: string; match_type: string }
+  match: { team_a_name: string; match_type: string; status: string; host_user_id: string; opponent_captain_id: string | null }
   error: string
   setError: (s: string) => void
   onDone: () => void
 }) {
   const [inviteId, setInviteId] = useState('')
+  const [teamBName, setTeamBName] = useState('')
   const [loading, setLoading] = useState(false)
+  const currentUser = authStore.getUser()
+  const isHost = currentUser?.id === match.host_user_id
+  const isOpponent = currentUser?.id === match.opponent_captain_id
 
   const handleInvite = async () => {
     if (!inviteId.trim()) return
@@ -159,6 +165,20 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
     }
   }
 
+  const handleAccept = async () => {
+    if (!teamBName.trim()) { setError('Enter your team name'); return }
+    setLoading(true)
+    setError('')
+    try {
+      await acceptInvitation(matchId, teamBName.trim())
+      onDone()
+    } catch (err) {
+      setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Accept failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (match.match_type === 'quick') {
     return (
       <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 text-center">
@@ -168,6 +188,50 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
     )
   }
 
+  // Opponent sees Accept UI when status is "invited"
+  if (match.status === 'invited' && isOpponent) {
+    return (
+      <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 space-y-4">
+        <h3 className="text-base font-bold text-[#dfe4dc]">You've Been Invited!</h3>
+        <p className="text-sm text-[#becabc]">
+          You've been invited to captain a team against <strong className="text-white">{match.team_a_name}</strong>. Enter your team name to accept.
+        </p>
+
+        <input
+          value={teamBName}
+          onChange={(e) => setTeamBName(e.target.value)}
+          placeholder="Your team name..."
+          className="w-full h-12 rounded-lg border border-[#3e4a3f] bg-[#1b211c] px-4 text-sm text-[#dfe4dc] outline-none focus:border-emerald-500 placeholder:text-[#889488]"
+        />
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
+
+        <button
+          onClick={handleAccept}
+          disabled={loading || !teamBName.trim()}
+          className="w-full h-12 rounded-lg bg-[#1B8A4A] font-bold text-white disabled:opacity-50 transition active:scale-[0.98]"
+        >
+          {loading ? 'Accepting...' : 'Accept Invitation'}
+        </button>
+      </div>
+    )
+  }
+
+  // Host sees "Waiting" after invite sent  
+  if (match.status === 'invited' && isHost) {
+    return (
+      <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 text-center space-y-3">
+        <Clock size={28} className="mx-auto text-amber-400" />
+        <h3 className="text-base font-bold text-[#dfe4dc]">Invitation Sent</h3>
+        <p className="text-sm text-[#becabc]">
+          Waiting for the opponent captain to accept your invitation.
+        </p>
+        <p className="text-xs text-[#889488]">They'll see this match in their dashboard. Share your match link if needed.</p>
+      </div>
+    )
+  }
+
+  // Default: Host hasn't sent invite yet (status = "created")
   return (
     <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 space-y-4">
       <h3 className="text-base font-bold text-[#dfe4dc]">Invite Opponent Captain</h3>
