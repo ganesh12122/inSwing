@@ -231,7 +231,10 @@ async def record_ball(
         batsman_result = await db.execute(
             select(PlayersInMatch).where(
                 PlayersInMatch.match_id == match_id,
-                PlayersInMatch.user_id == ball_data.batsman_id,
+                or_(
+                    PlayersInMatch.id == ball_data.batsman_id,
+                    PlayersInMatch.user_id == ball_data.batsman_id,
+                ),
             )
         )
         if not batsman_result.scalars().first():
@@ -244,7 +247,10 @@ async def record_ball(
         bowler_result = await db.execute(
             select(PlayersInMatch).where(
                 PlayersInMatch.match_id == match_id,
-                PlayersInMatch.user_id == ball_data.bowler_id,
+                or_(
+                    PlayersInMatch.id == ball_data.bowler_id,
+                    PlayersInMatch.user_id == ball_data.bowler_id,
+                ),
             )
         )
         if not bowler_result.scalars().first():

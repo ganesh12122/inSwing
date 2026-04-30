@@ -23,22 +23,22 @@ class Ball(Base):
     over_number = Column(Integer, nullable=False, index=True)
     ball_in_over = Column(Integer, nullable=False)  # 1-6 (or more for wides/no-balls)
 
-    # Players involved
+    # Players involved (references players_in_match record, not users directly)
     batsman_id = Column(
         String(36),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("players_in_match.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
     non_striker_id = Column(
         String(36),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("players_in_match.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
     bowler_id = Column(
         String(36),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("players_in_match.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -46,7 +46,8 @@ class Ball(Base):
     # Scoring information
     runs_off_bat = Column(Integer, default=0, nullable=False)
     extras_type = Column(
-        Enum("wide", "no_ball", "bye", "legbye", name="extras_type", native_enum=False), nullable=True
+        Enum("wide", "no_ball", "bye", "legbye", name="extras_type", native_enum=False),
+        nullable=True,
     )
     extras_runs = Column(Integer, default=0, nullable=False)
 
@@ -59,7 +60,8 @@ class Ball(Base):
             "lbw",
             "stumped",
             "hit_wicket",
-            name="wicket_type", native_enum=False,
+            name="wicket_type",
+            native_enum=False,
         ),
         nullable=True,
     )
@@ -78,9 +80,9 @@ class Ball(Base):
 
     # Relationships
     innings = relationship("Innings", back_populates="balls")
-    batsman = relationship("User", foreign_keys=[batsman_id])
-    non_striker = relationship("User", foreign_keys=[non_striker_id])
-    bowler = relationship("User", foreign_keys=[bowler_id])
+    batsman = relationship("PlayersInMatch", foreign_keys=[batsman_id])
+    non_striker = relationship("PlayersInMatch", foreign_keys=[non_striker_id])
+    bowler = relationship("PlayersInMatch", foreign_keys=[bowler_id])
 
     def __repr__(self):
         return f"<Ball(id={self.id}, innings={self.innings_id}, over={self.over_number}.{self.ball_in_over})>"
