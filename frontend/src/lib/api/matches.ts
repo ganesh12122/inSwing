@@ -42,7 +42,9 @@ export interface MatchResponse {
   team_a_name: string
   team_b_name: string | null
   venue: string | null
+  scheduled_at: string | null
   status: MatchStatus
+  invitation_message: string | null
   rules: MatchRules
   result: MatchResult | null
   toss_winner: string | null
@@ -75,6 +77,7 @@ export interface CreateMatchPayload {
   team_a_name: string
   team_b_name?: string
   venue?: string
+  scheduled_at?: string
   rules?: Partial<MatchRules>
 }
 
@@ -188,7 +191,7 @@ export async function fetchMatch(matchId: string): Promise<MatchResponse> {
 export async function inviteOpponent(matchId: string, opponentUserId: string, message?: string) {
   const { data } = await apiClient.post(`/matches/${matchId}/invite`, {
     opponent_user_id: opponentUserId,
-    invitation_message: message,
+    message,
   })
   return data
 }

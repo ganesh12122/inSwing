@@ -13,7 +13,7 @@ import {
   approveRules,
   createInnings,
 } from '../lib/api/matches'
-import { ArrowLeft, Check, CheckCircle, Coins, Clock } from 'lucide-react'
+import { ArrowLeft, Check, CheckCircle, Coins, Clock, MapPin, Calendar, MessageSquare } from 'lucide-react'
 import { authStore } from '../lib/auth-store'
 import type { MatchRules } from '../lib/api/matches'
 import type { AxiosError } from 'axios'
@@ -81,7 +81,10 @@ export function MatchSetupHubPage() {
           <h2 className="text-lg font-bold text-[#dfe4dc]">
             {match.team_a_name} vs {match.team_b_name ?? 'TBD'}
           </h2>
-          <p className="text-xs text-[#889488]">{match.rules.overs_limit} overs · {match.venue ?? 'Venue TBD'}</p>
+          <p className="text-xs text-[#889488]">
+            {match.rules.overs_limit} overs · {match.venue ?? 'Venue TBD'}
+            {match.scheduled_at && ` · ${new Date(match.scheduled_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${new Date(match.scheduled_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`}
+          </p>
         </div>
       </div>
 
@@ -143,12 +146,13 @@ export function MatchSetupHubPage() {
 
 function InviteStep({ matchId, match, error, setError, onDone }: {
   matchId: string
-  match: { team_a_name: string; match_type: string; status: string; host_user_id: string; opponent_captain_id: string | null }
+  match: { team_a_name: string; match_type: string; status: string; host_user_id: string; opponent_captain_id: string | null; venue: string | null; scheduled_at: string | null; invitation_message: string | null; rules: MatchRules }
   error: string
   setError: (s: string) => void
   onDone: () => void
 }) {
   const [inviteId, setInviteId] = useState('')
+  const [inviteMessage, setInviteMessage] = useState('')
   const [teamBName, setTeamBName] = useState('')
   const [loading, setLoading] = useState(false)
   const currentUser = authStore.getUser()
@@ -160,7 +164,7 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
     setLoading(true)
     setError('')
     try {
-      await inviteOpponent(matchId, inviteId.trim())
+      await inviteOpponent(matchId, inviteId.trim(), inviteMessage.trim() || undefined)
       onDone()
     } catch (err) {
       setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Invite failed')
@@ -194,12 +198,43 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
 
   // Opponent sees Accept UI when status is "invited"
   if (match.status === 'invited' && isOpponent) {
+    const scheduledDate = match.scheduled_at ? new Date(match.scheduled_at) : null
     return (
       <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 space-y-4">
         <h3 className="text-base font-bold text-[#dfe4dc]">You've Been Invited!</h3>
         <p className="text-sm text-[#becabc]">
-          You've been invited to captain a team against <strong className="text-white">{match.team_a_name}</strong>. Enter your team name to accept.
+          You've been invited to captain a team against <strong className="text-white">{match.team_a_name}</strong>.
         </p>
+
+        {/* Rich invite card */}
+        <div className="rounded-lg border border-[#3e4a3f] bg-[#1b211c] p-4 space-y-3">
+          {match.invitation_message && (
+            <div className="flex items-start gap-2">
+              <MessageSquare size={14} className="mt-0.5 text-emerald-400 shrink-0" />
+              <p className="text-sm text-[#dfe4dc] italic">"{match.invitation_message}"</p>
+            </div>
+          )}
+          {scheduledDate && (
+            <div className="flex items-center gap-2">
+              <Calendar size={14} className="text-amber-400 shrink-0" />
+              <span className="text-sm text-[#becabc]">
+                {scheduledDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {scheduledDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          )}
+          {match.venue && (
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-blue-400 shrink-0" />
+              <span className="text-sm text-[#becabc]">{match.venue}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-4 text-xs text-[#889488] pt-1 border-t border-[#3e4a3f]">
+            <span>{match.rules.overs_limit} overs</span>
+            <span>{match.rules.max_players_per_team} players/team</span>
+            {match.rules.tennis_ball && <span>Tennis ball</span>}
+            {match.rules.free_hit && <span>Free hit</span>}
+          </div>
+        </div>
 
         <input
           value={teamBName}
@@ -230,6 +265,9 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
         <p className="text-sm text-[#becabc]">
           Waiting for the opponent captain to accept your invitation.
         </p>
+        {match.invitation_message && (
+          <p className="text-xs text-[#889488] italic">Your message: "{match.invitation_message}"</p>
+        )}
         <p className="text-xs text-[#889488]">They'll see this match in their dashboard. Share your match link if needed.</p>
       </div>
     )
@@ -246,6 +284,15 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
         onChange={(e) => setInviteId(e.target.value)}
         placeholder="User ID or search..."
         className="w-full h-12 rounded-lg border border-[#3e4a3f] bg-[#1b211c] px-4 text-sm text-[#dfe4dc] outline-none focus:border-emerald-500 placeholder:text-[#889488]"
+      />
+
+      <textarea
+        value={inviteMessage}
+        onChange={(e) => setInviteMessage(e.target.value)}
+        placeholder="Add a message (optional) — e.g. 'Sunday evening match at Marine Drive!'"
+        maxLength={500}
+        rows={2}
+        className="w-full rounded-lg border border-[#3e4a3f] bg-[#1b211c] px-4 py-3 text-sm text-[#dfe4dc] outline-none focus:border-emerald-500 placeholder:text-[#889488] resize-none"
       />
 
       {error && <p className="text-xs text-red-400">{error}</p>}

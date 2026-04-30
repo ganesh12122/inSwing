@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { createMatch } from '../lib/api/matches'
-import { Zap, Users, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Zap, Users, ArrowLeft, CheckCircle, Calendar } from 'lucide-react'
 import type { MatchType } from '../lib/api/matches'
 import type { AxiosError } from 'axios'
 
@@ -14,6 +14,7 @@ const matchSchema = z
     team_a_name: z.string().min(1, 'Required').max(100),
     team_b_name: z.string().max(100).optional(),
     venue: z.string().max(255).optional(),
+    scheduled_at: z.string().optional(),
     overs_limit: z.coerce.number().min(1).max(50),
     max_players_per_team: z.coerce.number().min(2).max(15),
     wide_ball_runs: z.coerce.number().min(1).max(2),
@@ -52,6 +53,7 @@ export function MatchStudioPage() {
       team_a_name: '',
       team_b_name: '',
       venue: '',
+      scheduled_at: '',
       overs_limit: 6,
       max_players_per_team: 8,
       wide_ball_runs: 1,
@@ -79,6 +81,7 @@ export function MatchStudioPage() {
         team_a_name: data.team_a_name,
         team_b_name: data.match_type === 'quick' ? data.team_b_name : undefined,
         venue: data.venue || undefined,
+        scheduled_at: data.scheduled_at || undefined,
         rules: {
           overs_limit: data.overs_limit,
           max_players_per_team: data.max_players_per_team,
@@ -218,6 +221,14 @@ export function MatchStudioPage() {
           <div>
             <span className="mb-1.5 block text-sm text-[#becabc]">Venue (optional)</span>
             <input {...register('venue')} placeholder="Marine Drive Ground" className={inputClass} />
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-sm text-[#becabc]">
+              <Calendar size={14} className="inline mr-1.5 -mt-0.5" />
+              Scheduled Date & Time (optional)
+            </span>
+            <input {...register('scheduled_at')} type="datetime-local" className={inputClass} />
           </div>
         </section>
 
