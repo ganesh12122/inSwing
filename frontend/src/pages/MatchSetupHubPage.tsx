@@ -9,6 +9,8 @@ import {
   recordToss,
   inviteOpponent,
   acceptInvitation,
+  proposeRules,
+  approveRules,
   createInnings,
 } from '../lib/api/matches'
 import { ArrowLeft, Check, CheckCircle, Coins, Clock } from 'lucide-react'
@@ -27,20 +29,22 @@ export function MatchSetupHubPage() {
     queryKey: ['match', matchId],
     queryFn: () => fetchMatch(matchId!),
     enabled: !!matchId,
+    refetchInterval: 5000,
   })
 
   const { data: teams, refetch: refetchTeams } = useQuery({
     queryKey: ['teams', matchId],
     queryFn: () => getTeams(matchId!),
     enabled: !!matchId,
+    refetchInterval: 5000,
   })
 
   // Determine current step from match status
   const getStepIndex = (): number => {
     if (!match) return 0
     if (match.status === 'created' || match.status === 'invited') return 0
-    if (match.status === 'accepted' || match.status === 'teams_ready') return 1
-    if (match.status === 'rules_proposed' || match.status === 'rules_approved') return 2
+    if (match.status === 'accepted') return 1
+    if (match.status === 'teams_ready' || match.status === 'rules_proposed' || match.status === 'rules_approved') return 2
     if (match.status === 'toss_done') return 3
     return 0
   }
@@ -126,7 +130,7 @@ export function MatchSetupHubPage() {
         <TeamsStep matchId={matchId} match={match} teams={teams} error={error} setError={setError} onDone={() => { refetchMatch(); refetchTeams() }} />
       )}
       {currentStep === 2 && (
-        <RulesStep match={match} />
+        <RulesStep matchId={matchId} match={match} error={error} setError={setError} onDone={refetchMatch} />
       )}
       {currentStep === 3 && (
         <TossStep matchId={matchId} match={match} error={error} setError={setError} onDone={refetchMatch} navigate={navigate} />
@@ -259,7 +263,7 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
 
 function TeamsStep({ matchId, match, teams, error, setError, onDone }: {
   matchId: string
-  match: { team_a_name: string; team_b_name: string | null }
+  match: { team_a_name: string; team_b_name: string | null; host_user_id: string; opponent_captain_id: string | null }
   teams: Awaited<ReturnType<typeof getTeams>> | undefined
   error: string
   setError: (s: string) => void
@@ -267,6 +271,16 @@ function TeamsStep({ matchId, match, teams, error, setError, onDone }: {
 }) {
   const [playerName, setPlayerName] = useState('')
   const [addingTeam, setAddingTeam] = useState<'A' | 'B' | null>(null)
+  const [readyLoading, setReadyLoading] = useState(false)
+  const currentUser = authStore.getUser()
+
+  // Determine which team this user is captain of
+  const myTeam: 'A' | 'B' | null = currentUser?.id === match.host_user_id ? 'A'
+    : currentUser?.id === match.opponent_captain_id ? 'B'
+    : null
+
+  const myTeamReady = myTeam === 'A' ? teams?.team_a?.ready : teams?.team_b?.ready
+  const otherTeamReady = myTeam === 'A' ? teams?.team_b?.ready : teams?.team_a?.ready
 
   const handleAdd = async (team: 'A' | 'B') => {
     if (!playerName.trim()) return
@@ -282,12 +296,15 @@ function TeamsStep({ matchId, match, teams, error, setError, onDone }: {
   }
 
   const handleReady = async () => {
+    setReadyLoading(true)
     setError('')
     try {
-      await markTeamReady(matchId, true)
+      await markTeamReady(matchId, !myTeamReady)
       onDone()
     } catch (err) {
       setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Failed')
+    } finally {
+      setReadyLoading(false)
     }
   }
 
@@ -296,11 +313,27 @@ function TeamsStep({ matchId, match, teams, error, setError, onDone }: {
       {(['A', 'B'] as const).map((team) => {
         const info = team === 'A' ? teams?.team_a : teams?.team_b
         const name = team === 'A' ? match.team_a_name : (match.team_b_name ?? 'Team B')
+        const isMyTeam = team === myTeam
+        const isReady = info?.ready ?? false
         return (
-          <div key={team} className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-5">
+          <div key={team} className={`rounded-xl border bg-[#162029] p-5 ${
+            isReady ? 'border-emerald-600/50' : 'border-[#2a3a4a]'
+          }`}>
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-bold text-[#dfe4dc]">{name}</h4>
-              <span className="text-[10px] font-semibold text-[#889488]">{info?.count ?? 0} players</span>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-[#dfe4dc]">{name}</h4>
+                {isMyTeam && (
+                  <span className="rounded bg-emerald-600/20 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-400 uppercase">You</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-[#889488]">{info?.count ?? 0} players</span>
+                {isReady && (
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-600/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                    <Check size={10} /> Ready
+                  </span>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
               {info?.players?.map((p) => (
@@ -310,27 +343,30 @@ function TeamsStep({ matchId, match, teams, error, setError, onDone }: {
                 </div>
               ))}
             </div>
-            {addingTeam === team ? (
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  placeholder="Player name"
-                  className="flex-1 h-10 rounded-lg border border-[#3e4a3f] bg-[#1b211c] px-3 text-sm text-[#dfe4dc] outline-none focus:border-emerald-500"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd(team)}
-                  autoFocus
-                />
-                <button onClick={() => handleAdd(team)} className="rounded-lg bg-[#1B8A4A] px-3 text-sm font-semibold text-white">
-                  Add
+            {/* Only show add player for own team */}
+            {isMyTeam && !isReady && (
+              addingTeam === team ? (
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="Player name"
+                    className="flex-1 h-10 rounded-lg border border-[#3e4a3f] bg-[#1b211c] px-3 text-sm text-[#dfe4dc] outline-none focus:border-emerald-500"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdd(team)}
+                    autoFocus
+                  />
+                  <button onClick={() => handleAdd(team)} className="rounded-lg bg-[#1B8A4A] px-3 text-sm font-semibold text-white">
+                    Add
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingTeam(team)}
+                  className="mt-3 w-full rounded-lg border border-dashed border-[#3e4a3f] py-2.5 text-sm text-[#889488] hover:border-emerald-700 hover:text-emerald-400 transition"
+                >
+                  + Add Player
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setAddingTeam(team)}
-                className="mt-3 w-full rounded-lg border border-dashed border-[#3e4a3f] py-2.5 text-sm text-[#889488] hover:border-emerald-700 hover:text-emerald-400 transition"
-              >
-                + Add Player
-              </button>
+              )
             )}
           </div>
         )
@@ -338,32 +374,129 @@ function TeamsStep({ matchId, match, teams, error, setError, onDone }: {
 
       {error && <p className="text-xs text-red-400">{error}</p>}
 
-      <button
-        onClick={handleReady}
-        className="w-full h-12 rounded-lg bg-[#1B8A4A] font-bold text-white transition active:scale-[0.98]"
-      >
-        Mark Team Ready
-      </button>
+      {/* Ready button */}
+      {myTeam && (
+        <button
+          onClick={handleReady}
+          disabled={readyLoading}
+          className={`w-full h-12 rounded-lg font-bold transition active:scale-[0.98] disabled:opacity-50 ${
+            myTeamReady
+              ? 'bg-amber-600/20 border border-amber-500/40 text-amber-400'
+              : 'bg-[#1B8A4A] text-white'
+          }`}
+        >
+          {readyLoading
+            ? 'Updating...'
+            : myTeamReady
+              ? 'Undo Ready'
+              : 'Mark Team Ready'
+          }
+        </button>
+      )}
+
+      {/* Status message */}
+      {myTeamReady && !otherTeamReady && (
+        <p className="text-center text-xs text-[#889488]">Waiting for the other captain to mark their team ready...</p>
+      )}
+      {myTeamReady && otherTeamReady && (
+        <p className="text-center text-xs text-emerald-400 font-medium">Both teams are ready! Proceeding to next step...</p>
+      )}
     </div>
   )
 }
 
-function RulesStep({ match }: { match: { rules: MatchRules } }) {
+function RulesStep({ matchId, match, error, setError, onDone }: {
+  matchId: string
+  match: { rules: MatchRules; status: string; host_user_id: string; opponent_captain_id: string | null; rules_agreed: boolean }
+  error: string
+  setError: (s: string) => void
+  onDone: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const currentUser = authStore.getUser()
+  const isHost = currentUser?.id === match.host_user_id
   const rules = match.rules as unknown as Record<string, unknown>
+
+  const handleApproveRules = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      if (match.status === 'teams_ready') {
+        // First captain to confirm — propose current rules
+        await proposeRules(matchId, match.rules)
+        onDone()
+      } else if (match.status === 'rules_proposed') {
+        // Second captain approves
+        await approveRules(matchId)
+        onDone()
+      }
+    } catch (err) {
+      setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Rules fully approved — show success
+  if (match.status === 'rules_approved' || match.rules_agreed) {
+    return (
+      <div className="rounded-xl border border-emerald-600/50 bg-[#162029] p-6 text-center space-y-3">
+        <CheckCircle size={28} className="mx-auto text-emerald-500" />
+        <h3 className="text-base font-bold text-[#dfe4dc]">Rules Agreed!</h3>
+        <p className="text-sm text-[#becabc]">Both captains approved. Proceed to toss.</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6">
-      <h3 className="text-base font-bold text-[#dfe4dc] mb-4">Match Rules</h3>
-      {rules ? (
-        <div className="space-y-2">
-          {Object.entries(rules).map(([key, val]) => (
-            <div key={key} className="flex items-center justify-between rounded-lg bg-[#1b211c] border border-[#3e4a3f] px-3 py-2.5">
-              <span className="text-sm text-[#becabc] capitalize">{key.replace(/_/g, ' ')}</span>
-              <span className="text-sm font-mono font-bold text-emerald-400">{String(val)}</span>
-            </div>
-          ))}
+    <div className="space-y-4">
+      <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-[#dfe4dc]">Match Rules</h3>
+          {match.status === 'rules_proposed' && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">Pending Approval</span>
+          )}
         </div>
-      ) : (
-        <p className="text-sm text-[#889488]">Waiting for rules to be proposed...</p>
+        {rules ? (
+          <div className="space-y-2">
+            {Object.entries(rules).map(([key, val]) => (
+              <div key={key} className="flex items-center justify-between rounded-lg bg-[#1b211c] border border-[#3e4a3f] px-3 py-2.5">
+                <span className="text-sm text-[#becabc] capitalize">{key.replace(/_/g, ' ')}</span>
+                <span className="text-sm font-mono font-bold text-emerald-400">{String(val)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[#889488]">No rules set yet.</p>
+        )}
+      </div>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      {match.status === 'teams_ready' && (
+        <button
+          onClick={handleApproveRules}
+          disabled={loading}
+          className="w-full h-12 rounded-lg bg-[#1B8A4A] font-bold text-white disabled:opacity-50 transition active:scale-[0.98]"
+        >
+          {loading ? 'Confirming...' : 'Confirm Rules & Proceed'}
+        </button>
+      )}
+
+      {match.status === 'rules_proposed' && (
+        <button
+          onClick={handleApproveRules}
+          disabled={loading}
+          className="w-full h-12 rounded-lg bg-[#1B8A4A] font-bold text-white disabled:opacity-50 transition active:scale-[0.98]"
+        >
+          {loading ? 'Approving...' : 'Approve Rules'}
+        </button>
+      )}
+
+      {match.status === 'rules_proposed' && (
+        <p className="text-center text-xs text-[#889488]">
+          {isHost ? 'Waiting for opponent to approve...' : 'Review the rules above and approve to proceed.'}
+        </p>
       )}
     </div>
   )

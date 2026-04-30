@@ -226,6 +226,16 @@ export async function markTeamReady(matchId: string, ready = true) {
   return data
 }
 
+export async function proposeRules(matchId: string, rules: Partial<MatchRules>) {
+  const { data } = await apiClient.post(`/matches/${matchId}/rules/propose`, { rules })
+  return data
+}
+
+export async function approveRules(matchId: string) {
+  const { data } = await apiClient.post(`/matches/${matchId}/rules/approve`)
+  return data
+}
+
 export async function recordToss(matchId: string, tossWinner: 'A' | 'B', tossDecision: 'bat' | 'bowl') {
   const { data } = await apiClient.put(`/matches/${matchId}/toss`, {
     toss_winner: tossWinner,
