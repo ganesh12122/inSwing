@@ -22,6 +22,7 @@ export function DashboardPage() {
   const { data: matchData, isLoading } = useQuery({
     queryKey: ['my-matches'],
     queryFn: fetchMyMatches,
+    refetchInterval: 15_000,
   })
 
   const matches = matchData?.matches ?? []
@@ -133,6 +134,16 @@ function StatBento({ label, value }: { label: string; value: string }) {
 }
 
 function LiveCard({ match, onClick }: { match: MatchResponse; onClick: () => void }) {
+  const innings = match.innings_summary ?? []
+  const teamAInnings = innings.find((i) => i.batting_team === 'A')
+  const teamBInnings = innings.find((i) => i.batting_team === 'B')
+  const currentInnings = innings.find((i) => !i.is_completed) ?? innings[innings.length - 1]
+
+  const formatScore = (inn: typeof teamAInnings) =>
+    inn ? `${inn.runs}/${inn.wickets}` : '—'
+  const formatOvers = (inn: typeof teamAInnings) =>
+    inn ? `${inn.overs} ov` : ''
+
   return (
     <button
       onClick={onClick}
@@ -143,16 +154,30 @@ function LiveCard({ match, onClick }: { match: MatchResponse; onClick: () => voi
           <span className="text-[10px] font-semibold uppercase tracking-wider text-[#becabc]">
             {match.team_a_name}
           </span>
-          <p className="font-mono text-3xl font-bold text-white">—</p>
+          <p className="font-mono text-3xl font-bold text-white">{formatScore(teamAInnings)}</p>
+          {teamAInnings && (
+            <p className="text-[10px] text-[#889488]">{formatOvers(teamAInnings)}{teamAInnings.is_completed ? ' ✓' : ''}</p>
+          )}
         </div>
         <span className="text-xs font-semibold uppercase text-[#889488] pb-2">VS</span>
         <div className="text-right">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-[#becabc]">
             {match.team_b_name ?? 'TBD'}
           </span>
-          <p className="font-mono text-3xl font-bold text-white">—</p>
+          <p className="font-mono text-3xl font-bold text-white">{formatScore(teamBInnings)}</p>
+          {teamBInnings && (
+            <p className="text-[10px] text-[#889488]">{formatOvers(teamBInnings)}{teamBInnings.is_completed ? ' ✓' : ''}</p>
+          )}
         </div>
       </div>
+      {currentInnings && innings.length >= 2 && !currentInnings.is_completed && (
+        <div className="mb-2 text-center">
+          <span className="text-xs font-medium text-emerald-400">
+            Need {Math.max(0, (innings[0].runs + 1) - currentInnings.runs)} off{' '}
+            {((match.rules.overs_limit ?? 6) - currentInnings.overs).toFixed(1)} ov
+          </span>
+        </div>
+      )}
       <div className="border-t border-[#3e4a3f] pt-3 flex items-center justify-between">
         <span className="text-xs text-[#becabc]">{match.venue ?? 'Venue TBD'}</span>
         <span className="text-[10px] font-semibold text-emerald-400 uppercase">{match.rules.overs_limit} overs</span>
@@ -187,6 +212,10 @@ function RecentMatchCard({ match, onClick }: { match: MatchResponse; onClick: ()
     }
   })()
 
+  const innings = match.innings_summary ?? []
+  const teamAInn = innings.find((i) => i.batting_team === 'A')
+  const teamBInn = innings.find((i) => i.batting_team === 'B')
+
   return (
     <button
       onClick={onClick}
@@ -195,9 +224,15 @@ function RecentMatchCard({ match, onClick }: { match: MatchResponse; onClick: ()
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="text-sm font-bold text-[#dfe4dc] truncate">{match.team_a_name}</span>
+          {teamAInn && (
+            <span className="text-xs font-mono text-[#becabc]">{teamAInn.runs}/{teamAInn.wickets}</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-[#dfe4dc] truncate">{match.team_b_name ?? 'TBD'}</span>
+          {teamBInn && (
+            <span className="text-xs font-mono text-[#becabc]">{teamBInn.runs}/{teamBInn.wickets}</span>
+          )}
         </div>
       </div>
       <div className="text-right shrink-0">

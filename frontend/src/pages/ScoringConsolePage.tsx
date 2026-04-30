@@ -7,12 +7,13 @@ import {
   fetchBalls,
   createInnings,
   recordBall,
+  deleteBall,
   recordToss,
   addPlayer,
   getTeams,
   markTeamReady,
 } from '../lib/api/matches'
-import { MoreHorizontal, Trophy } from 'lucide-react'
+import { MoreHorizontal, Trophy, Undo2 } from 'lucide-react'
 import type {
   MatchResponse,
   InningsResponse,
@@ -252,13 +253,14 @@ export function ScoringConsolePage() {
         setSelectedWicket(null)
         refetchInnings()
         refetchBalls()
+        refetchMatch()
       } catch (err) {
         setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Failed to record ball')
       } finally {
         setSubmitting(false)
       }
     },
-    [matchId, currentInnings, currentOver, currentBall, selectedExtras, selectedWicket, strikerId, nonStrikerId, bowlerId, submitting, refetchInnings, refetchBalls],
+    [matchId, currentInnings, currentOver, currentBall, selectedExtras, selectedWicket, strikerId, nonStrikerId, bowlerId, submitting, refetchInnings, refetchBalls, refetchMatch],
   )
 
   const handleToss = async () => {
@@ -314,6 +316,44 @@ export function ScoringConsolePage() {
       setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Failed')
     }
   }
+
+  const handleUndoLastBall = useCallback(async () => {
+    if (!matchId || !currentInnings || submitting) return
+    const lastBall = overBalls.length > 0 ? overBalls[overBalls.length - 1] : (allBalls && allBalls.length > 0 ? allBalls[allBalls.length - 1] : null)
+    if (!lastBall) return
+
+    setSubmitting(true)
+    setError('')
+    try {
+      await deleteBall(matchId, currentInnings.id, lastBall.id)
+      setOverBalls((prev) => prev.slice(0, -1))
+
+      // Revert ball counter
+      if (lastBall.is_legal_delivery) {
+        if (currentBall === 1 && currentOver > 1) {
+          // Was start of a new over — go back to ball 6 of previous over
+          setCurrentOver((o) => o - 1)
+          setCurrentBall(6)
+        } else if (currentBall > 1) {
+          setCurrentBall((b) => b - 1)
+        }
+        // Revert strike rotation
+        const runs = lastBall.runs_off_bat
+        if (runs % 2 === 1) {
+          setStrikerId(nonStrikerId)
+          setNonStrikerId(strikerId)
+        }
+      }
+
+      refetchInnings()
+      refetchBalls()
+      refetchMatch()
+    } catch (err) {
+      setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Undo failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }, [matchId, currentInnings, currentOver, currentBall, overBalls, allBalls, strikerId, nonStrikerId, submitting, refetchInnings, refetchBalls, refetchMatch])
 
   // ── Loading states ──────────────────────────────────────────────────────
   if (!matchId) return <p className="text-[var(--text-muted)]">No match ID</p>
@@ -475,9 +515,20 @@ export function ScoringConsolePage() {
           <p className="text-xs font-medium text-[var(--text-muted)]">
             Over {currentOver} — Ball {currentBall}
           </p>
-          <p className="text-sm font-bold text-[var(--accent)]">
-            {currentInnings ? `${currentInnings.runs}/${currentInnings.wickets}` : '—'}
-          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={submitting || (!overBalls.length && !(allBalls && allBalls.length))}
+              onClick={handleUndoLastBall}
+              className="flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400 transition hover:bg-amber-500/20 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Undo2 size={12} />
+              Undo
+            </button>
+            <p className="text-sm font-bold text-[var(--accent)]">
+              {currentInnings ? `${currentInnings.runs}/${currentInnings.wickets}` : '—'}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">

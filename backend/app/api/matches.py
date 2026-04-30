@@ -9,6 +9,7 @@ from app.dependencies import (
     require_host_role,
 )
 from app.models.match import Match
+from app.models.innings import Innings
 from app.models.notification import Notification
 from app.models.players_in_match import PlayersInMatch
 from app.models.user import User
@@ -194,8 +195,25 @@ async def my_matches(
     result = await db.execute(statement)
     matches = result.scalars().all()
 
+    # Load innings for live/finished matches to populate summaries
+    match_ids_needing_innings = [
+        m.id for m in matches if m.status in ("live", "finished")
+    ]
+    innings_map: dict[str, list] = {mid: [] for mid in match_ids_needing_innings}
+    if match_ids_needing_innings:
+        innings_result = await db.execute(
+            select(Innings)
+            .where(Innings.match_id.in_(match_ids_needing_innings))
+            .order_by(Innings.created_at)
+        )
+        for inn in innings_result.scalars().all():
+            innings_map[inn.match_id].append(inn)
+
     return MatchListResponse(
-        matches=[MatchResponse.from_match(m) for m in matches],
+        matches=[
+            MatchResponse.from_match(m, innings=innings_map.get(m.id, []))
+            for m in matches
+        ],
         total=total,
         page=page,
         per_page=per_page,
@@ -218,7 +236,13 @@ async def get_match(
             detail="Match not found",
         )
 
-    return MatchResponse.from_match(match)
+    # Load innings for summary
+    innings_result = await db.execute(
+        select(Innings).where(Innings.match_id == match_id).order_by(Innings.created_at)
+    )
+    match_innings = innings_result.scalars().all()
+
+    return MatchResponse.from_match(match, innings=match_innings)
 
 
 # ============================================================================

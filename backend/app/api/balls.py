@@ -559,4 +559,76 @@ async def update_ball(
     )
 
     return ball
-    return ball
+
+
+@router.delete(
+    "/{match_id}/innings/{innings_id}/balls/{ball_id}",
+    status_code=status.HTTP_200_OK,
+)
+async def delete_ball(
+    match_id: str,
+    innings_id: str,
+    ball_id: str,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(require_host_role),
+):
+    """Delete last ball (undo). Recalculates innings stats."""
+    match_result = await db.execute(select(Match).where(Match.id == match_id))
+    match = match_result.scalars().first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    if match.host_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only host can delete balls")
+
+    innings_result = await db.execute(
+        select(Innings).where(Innings.id == innings_id, Innings.match_id == match_id)
+    )
+    innings = innings_result.scalars().first()
+    if not innings:
+        raise HTTPException(status_code=404, detail="Innings not found")
+
+    ball_result = await db.execute(
+        select(Ball).where(Ball.id == ball_id, Ball.innings_id == innings_id)
+    )
+    ball = ball_result.scalars().first()
+    if not ball:
+        raise HTTPException(status_code=404, detail="Ball not found")
+
+    # Verify this is the last ball (prevent deleting arbitrary balls)
+    last_ball_result = await db.execute(
+        select(Ball)
+        .where(Ball.innings_id == innings_id)
+        .order_by(Ball.created_at.desc())
+        .limit(1)
+    )
+    last_ball = last_ball_result.scalars().first()
+    if not last_ball or last_ball.id != ball_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Can only delete the most recent ball",
+        )
+
+    # Revert innings statistics
+    innings.runs -= ball.total_runs
+    innings.extras -= ball.extras_runs
+    if ball.wicket_type:
+        innings.wickets -= 1
+    if ball.is_legal_delivery:
+        total_balls = int(innings.overs_bowled) * 6 + innings.current_over_balls - 1
+        if total_balls < 0:
+            total_balls = 0
+        innings.overs_bowled = total_balls // 6 + (total_balls % 6) / 10
+
+    await db.delete(ball)
+    await db.commit()
+
+    logger.info(
+        "Ball deleted (undo)",
+        ball_id=ball_id,
+        innings_id=innings_id,
+        match_id=match_id,
+        user_id=current_user.id,
+    )
+
+    return {"message": "Ball deleted", "ball_id": ball_id}

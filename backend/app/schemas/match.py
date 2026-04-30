@@ -247,15 +247,26 @@ class MatchInDB(BaseModel):
         from_attributes = True
 
 
+class InningsSummary(BaseModel):
+    """Lightweight innings summary for match list displays."""
+
+    batting_team: str
+    runs: int
+    wickets: int
+    overs: float
+    is_completed: bool
+
+
 class MatchResponse(MatchInDB):
     """Schema for match responses — includes computed fields."""
 
     is_dual_captain: bool = False
     both_teams_ready: bool = False
     rules_agreed: bool = False
+    innings_summary: List[InningsSummary] = []
 
     @classmethod
-    def from_match(cls, match) -> "MatchResponse":
+    def from_match(cls, match, innings=None) -> "MatchResponse":
         """Build response from Match ORM object with computed fields."""
         data = {
             "id": match.id,
@@ -294,6 +305,17 @@ class MatchResponse(MatchInDB):
             "is_dual_captain": match.match_type == "dual_captain",
             "both_teams_ready": match.host_team_ready and match.opponent_team_ready,
             "rules_agreed": match.host_rules_approved and match.opponent_rules_approved,
+            # Innings summary (if provided)
+            "innings_summary": [
+                InningsSummary(
+                    batting_team=inn.batting_team,
+                    runs=inn.runs,
+                    wickets=inn.wickets,
+                    overs=float(inn.overs_bowled),
+                    is_completed=inn.is_completed,
+                )
+                for inn in (innings or [])
+            ],
         }
         return cls(**data)
 

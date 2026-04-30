@@ -34,6 +34,14 @@ export interface MatchRules {
   scorer_permission: 'host_only' | 'captains' | 'designated' | 'all_players'
 }
 
+export interface InningsSummary {
+  batting_team: string
+  runs: number
+  wickets: number
+  overs: number
+  is_completed: boolean
+}
+
 export interface MatchResponse {
   id: string
   host_user_id: string
@@ -54,6 +62,7 @@ export interface MatchResponse {
   is_dual_captain: boolean
   both_teams_ready: boolean
   rules_agreed: boolean
+  innings_summary: InningsSummary[]
   created_at: string
   updated_at: string
   started_at: string | null
@@ -292,6 +301,29 @@ export async function fetchBalls(matchId: string, inningsId: string): Promise<Ba
     `/matches/${matchId}/innings/${inningsId}/balls`,
   )
   return data
+}
+
+export async function updateBall(
+  matchId: string,
+  inningsId: string,
+  ballId: string,
+  payload: Partial<BallPayload>,
+): Promise<BallResponse> {
+  const { data } = await apiClient.put<BallResponse>(
+    `/matches/${matchId}/innings/${inningsId}/balls/${ballId}`,
+    payload,
+  )
+  return data
+}
+
+export async function deleteBall(
+  matchId: string,
+  inningsId: string,
+  ballId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `/matches/${matchId}/innings/${inningsId}/balls/${ballId}`,
+  )
 }
 
 export async function updateMatchStatus(matchId: string, status: MatchStatus) {
