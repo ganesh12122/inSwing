@@ -50,8 +50,8 @@ class Settings(BaseSettings):
     ALLOWED_IMAGE_TYPES: List[str] = ["jpg", "jpeg", "png", "gif"]
 
     # Rate Limiting
-    RATE_LIMIT_PER_MINUTE: int = 60
-    RATE_LIMIT_PER_HOUR: int = 1000
+    RATE_LIMIT_PER_MINUTE: int = 200
+    RATE_LIMIT_PER_HOUR: int = 5000
 
     # Logging
     LOG_LEVEL: str = "INFO"

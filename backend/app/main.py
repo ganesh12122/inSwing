@@ -96,8 +96,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = request.client.host if request.client else "unknown"
         if client_ip == "testclient":
             return await call_next(request)
+
+        # Use user-specific key if authenticated, else IP-based
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            # Key by token hash suffix to differentiate users on same IP
+            token_suffix = auth_header[-16:]
+            rate_key = f"{client_ip}:{token_suffix}"
+        else:
+            rate_key = client_ip
+
         allowed, count = await redis_service.check_rate_limit(
-            client_ip, settings.RATE_LIMIT_PER_MINUTE, 60
+            rate_key, settings.RATE_LIMIT_PER_MINUTE, 60
         )
 
         if not allowed:
