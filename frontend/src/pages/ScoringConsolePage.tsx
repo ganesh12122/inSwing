@@ -129,6 +129,11 @@ export function ScoringConsolePage() {
   const [error, setError] = useState('')
   const [showAddPlayer, setShowAddPlayer] = useState<'A' | 'B' | null>(null)
 
+  // Player tracking
+  const [strikerId, setStrikerId] = useState<string | null>(null)
+  const [nonStrikerId, setNonStrikerId] = useState<string | null>(null)
+  const [bowlerId, setBowlerId] = useState<string | null>(null)
+
   // Toss state
   const [tossWinner, setTossWinner] = useState<'A' | 'B'>('A')
   const [tossDecision, setTossDecision] = useState<'bat' | 'bowl'>('bat')
@@ -192,6 +197,10 @@ export function ScoringConsolePage() {
   const handleRecordBall = useCallback(
     async (runs: number) => {
       if (!matchId || !currentInnings || submitting) return
+
+      // Wicket selected but no type chosen? Don't proceed
+      if (selectedWicket && !WICKETS.includes(selectedWicket as typeof WICKETS[number])) return
+
       setSubmitting(true)
       setError('')
 
@@ -205,6 +214,9 @@ export function ScoringConsolePage() {
           extras_type: (selectedExtras ?? undefined) as 'wide' | 'no_ball' | 'bye' | 'legbye' | undefined,
           extras_runs: selectedExtras ? runs || 1 : 0,
           wicket_type: (selectedWicket ?? undefined) as 'bowled' | 'caught' | 'runout' | 'lbw' | 'stumped' | 'hit_wicket' | undefined,
+          batsman_id: strikerId ?? undefined,
+          non_striker_id: nonStrikerId ?? undefined,
+          bowler_id: bowlerId ?? undefined,
           client_event_id: clientEventId,
         })
 
@@ -215,8 +227,16 @@ export function ScoringConsolePage() {
             setCurrentOver((o) => o + 1)
             setCurrentBall(1)
             setOverBalls([])
+            // End of over: swap strike
+            setStrikerId(nonStrikerId)
+            setNonStrikerId(strikerId)
           } else {
             setCurrentBall((b) => b + 1)
+            // Swap strike on odd runs
+            if (runs % 2 === 1) {
+              setStrikerId(nonStrikerId)
+              setNonStrikerId(strikerId)
+            }
           }
         }
 
@@ -229,7 +249,7 @@ export function ScoringConsolePage() {
         setSubmitting(false)
       }
     },
-    [matchId, currentInnings, currentOver, currentBall, selectedExtras, selectedWicket, submitting, refetchInnings],
+    [matchId, currentInnings, currentOver, currentBall, selectedExtras, selectedWicket, strikerId, nonStrikerId, bowlerId, submitting, refetchInnings],
   )
 
   const handleToss = async () => {
@@ -385,6 +405,12 @@ export function ScoringConsolePage() {
   // ── LIVE SCORING ────────────────────────────────────────────────────────
   const target = innings && innings.length >= 2 ? innings[0].runs + 1 : null
 
+  // Get batting and bowling team players
+  const battingTeamKey = currentInnings?.batting_team === 'A' ? 'team_a' : 'team_b'
+  const bowlingTeamKey = currentInnings?.batting_team === 'A' ? 'team_b' : 'team_a'
+  const battingPlayers = teams?.[battingTeamKey]?.players ?? []
+  const bowlingPlayers = teams?.[bowlingTeamKey]?.players ?? []
+
   return (
     <section className="space-y-4">
       <MatchHeader match={match} innings={currentInnings} target={target} />
@@ -418,6 +444,62 @@ export function ScoringConsolePage() {
           )}
         </div>
       )}
+
+      {/* Batsmen & Bowler Panel */}
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          {/* Striker */}
+          <div>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+              🏏 On Strike
+            </label>
+            <select
+              value={strikerId ?? ''}
+              onChange={(e) => setStrikerId(e.target.value || null)}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            >
+              <option value="">Select batsman...</option>
+              {battingPlayers.filter(p => p.id !== nonStrikerId).map(p => (
+                <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Non-Striker */}
+          <div>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              Non-Striker
+            </label>
+            <select
+              value={nonStrikerId ?? ''}
+              onChange={(e) => setNonStrikerId(e.target.value || null)}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            >
+              <option value="">Select batsman...</option>
+              {battingPlayers.filter(p => p.id !== strikerId).map(p => (
+                <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Bowler */}
+          <div>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-red-400">
+              ⚾ Bowler
+            </label>
+            <select
+              value={bowlerId ?? ''}
+              onChange={(e) => setBowlerId(e.target.value || null)}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            >
+              <option value="">Select bowler...</option>
+              {bowlingPlayers.map(p => (
+                <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
 
       {/* This over strip */}
       <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
@@ -469,8 +551,12 @@ export function ScoringConsolePage() {
             <button
               type="button"
               disabled={submitting}
-              onClick={() => { setSelectedWicket('bowled'); handleRecordBall(0) }}
-              className="aspect-square flex flex-col items-center justify-center rounded-full bg-red-500 text-white font-mono text-2xl font-bold transition-transform active:scale-95 disabled:opacity-50 shadow-lg"
+              onClick={() => setSelectedWicket(selectedWicket ? null : 'bowled')}
+              className={`aspect-square flex flex-col items-center justify-center rounded-full font-mono text-2xl font-bold transition-transform active:scale-95 disabled:opacity-50 shadow-lg ${
+                selectedWicket
+                  ? 'bg-red-600 ring-2 ring-red-400 text-white'
+                  : 'bg-red-500 text-white'
+              }`}
             >
               <span>W</span>
               <span className="text-[9px] font-semibold -mt-1">WICKET</span>
