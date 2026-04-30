@@ -3,215 +3,264 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
-import { loginWithEmail, requestOTP, verifyOTP } from '../lib/api/auth'
+import { loginWithEmail, register as registerApi } from '../lib/api/auth'
 import { authStore } from '../lib/auth-store'
 import type { AxiosError } from 'axios'
 
-// ── Email / password tab ────────────────────────────────────────────────────
-const emailSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-})
-type EmailInput = z.infer<typeof emailSchema>
+type AuthView = 'landing' | 'login' | 'register'
 
-function EmailLoginForm() {
+// ── Schemas ─────────────────────────────────────────────────────────────────
+const loginSchema = z.object({
+  email: z.string().email('Enter a valid email'),
+  password: z.string().min(6, 'Min 6 characters'),
+})
+type LoginInput = z.infer<typeof loginSchema>
+
+const registerSchema = z
+  .object({
+    full_name: z.string().min(2, 'Enter your name'),
+    email: z.string().email('Enter a valid email'),
+    phone_number: z.string().optional(),
+    password: z.string().min(6, 'Min 6 characters'),
+    confirm_password: z.string(),
+  })
+  .refine((d) => d.password === d.confirm_password, {
+    message: 'Passwords do not match',
+    path: ['confirm_password'],
+  })
+type RegisterInput = z.infer<typeof registerSchema>
+
+// ── Input field component ───────────────────────────────────────────────────
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string
+  error?: string
+  children: React.ReactNode
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-[#becabc]">{label}</span>
+      {children}
+      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+    </label>
+  )
+}
+
+const inputClass =
+  'w-full h-12 rounded-lg border border-[#3e4a3f] bg-[#1b211c] px-4 text-sm text-[#dfe4dc] outline-none transition-colors focus:border-emerald-500 placeholder:text-[#889488]'
+
+// ── Login Form ──────────────────────────────────────────────────────────────
+function LoginForm({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState('')
-  const { register, handleSubmit, formState } = useForm<EmailInput>({
-    resolver: zodResolver(emailSchema),
-    defaultValues: { email: '', password: '' },
+  const { register, handleSubmit, formState } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
   })
 
-  const submit = async (data: EmailInput) => {
+  const submit = async (data: LoginInput) => {
     setServerError('')
     try {
       const res = await loginWithEmail(data.email, data.password)
       authStore.setSession(res)
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      const msg = (err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Login failed'
+      const msg =
+        (err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Login failed'
       setServerError(msg)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-4">
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">Email</span>
-        <input
-          {...register('email')}
-          type="email"
-          className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
-        />
-        {formState.errors.email && <p className="mt-1 text-xs text-red-400">{formState.errors.email.message}</p>}
-      </label>
-
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">Password</span>
-        <input
-          {...register('password')}
-          type="password"
-          className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
-        />
-        {formState.errors.password && <p className="mt-1 text-xs text-red-400">{formState.errors.password.message}</p>}
-      </label>
-
-      {serverError && <p className="text-xs text-red-400">{serverError}</p>}
-
+    <div className="w-full max-w-md px-4">
       <button
-        type="submit"
-        disabled={formState.isSubmitting}
-        className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
+        type="button"
+        onClick={onBack}
+        className="mb-6 flex items-center gap-1 text-sm text-[#becabc] transition hover:text-emerald-400"
       >
-        {formState.isSubmitting ? 'Signing in…' : 'Sign In'}
+        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back
       </button>
-    </form>
-  )
-}
 
-// ── Phone OTP tab ───────────────────────────────────────────────────────────
-const phoneSchema = z.object({ phone: z.string().min(8).max(15) })
-const otpSchema = z.object({ otp: z.string().length(6) })
-type PhoneInput = z.infer<typeof phoneSchema>
-type OtpInput = z.infer<typeof otpSchema>
+      <h2 className="mb-2 text-2xl font-bold text-white">Welcome back</h2>
+      <p className="mb-8 text-sm text-[#becabc]">Sign in to your inSwing account</p>
 
-function OTPLoginForm() {
-  const navigate = useNavigate()
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [serverError, setServerError] = useState('')
+      <form onSubmit={handleSubmit(submit)} className="space-y-5">
+        <Field label="Email" error={formState.errors.email?.message}>
+          <input {...register('email')} type="email" placeholder="you@example.com" className={inputClass} />
+        </Field>
 
-  const phoneForm = useForm<PhoneInput>({ resolver: zodResolver(phoneSchema) })
-  const otpForm = useForm<OtpInput>({ resolver: zodResolver(otpSchema) })
+        <Field label="Password" error={formState.errors.password?.message}>
+          <input {...register('password')} type="password" placeholder="••••••••" className={inputClass} />
+        </Field>
 
-  const sendOTP = async (data: PhoneInput) => {
-    setServerError('')
-    try {
-      const res = await requestOTP(data.phone)
-      setSessionId(res.session_id)
-    } catch (err) {
-      const msg = (err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Could not send OTP'
-      setServerError(msg)
-    }
-  }
-
-  const confirmOTP = async (data: OtpInput) => {
-    if (!sessionId) return
-    setServerError('')
-    try {
-      const res = await verifyOTP(sessionId, data.otp)
-      authStore.setSession(res)
-      navigate('/dashboard', { replace: true })
-    } catch (err) {
-      const msg = (err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Invalid OTP'
-      setServerError(msg)
-    }
-  }
-
-  if (!sessionId) {
-    return (
-      <form onSubmit={phoneForm.handleSubmit(sendOTP)} className="space-y-4">
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">Phone number</span>
-          <input
-            {...phoneForm.register('phone')}
-            type="tel"
-            placeholder="+91 98765 43210"
-            className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm outline-none transition focus:border-[var(--accent)]"
-          />
-          {phoneForm.formState.errors.phone && (
-            <p className="mt-1 text-xs text-red-400">{phoneForm.formState.errors.phone.message}</p>
-          )}
-        </label>
-
-        {serverError && <p className="text-xs text-red-400">{serverError}</p>}
+        {serverError && (
+          <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-3 text-xs text-red-400">
+            {serverError}
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={phoneForm.formState.isSubmitting}
-          className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
+          disabled={formState.isSubmitting}
+          className="w-full h-14 rounded-lg bg-[#1B8A4A] text-white font-bold text-lg shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
         >
-          {phoneForm.formState.isSubmitting ? 'Sending…' : 'Send OTP'}
+          {formState.isSubmitting ? 'Signing in…' : 'Sign In'}
         </button>
       </form>
-    )
-  }
-
-  return (
-    <form onSubmit={otpForm.handleSubmit(confirmOTP)} className="space-y-4">
-      <p className="text-sm text-[var(--text-muted)]">Enter the 6-digit code sent to your phone.</p>
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-[var(--text-muted)]">OTP code</span>
-        <input
-          {...otpForm.register('otp')}
-          type="text"
-          inputMode="numeric"
-          maxLength={6}
-          className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2.5 text-center text-2xl tracking-[0.5em] outline-none transition focus:border-[var(--accent)]"
-        />
-        {otpForm.formState.errors.otp && (
-          <p className="mt-1 text-xs text-red-400">{otpForm.formState.errors.otp.message}</p>
-        )}
-      </label>
-
-      {serverError && <p className="text-xs text-red-400">{serverError}</p>}
-
-      <button
-        type="submit"
-        disabled={otpForm.formState.isSubmitting}
-        className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
-      >
-        {otpForm.formState.isSubmitting ? 'Verifying…' : 'Verify & Sign In'}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setSessionId(null)}
-        className="w-full text-xs text-[var(--text-muted)] underline underline-offset-2"
-      >
-        Use a different number
-      </button>
-    </form>
+    </div>
   )
 }
 
-// ── Page shell ──────────────────────────────────────────────────────────────
-type Tab = 'email' | 'otp'
+// ── Register Form ───────────────────────────────────────────────────────────
+function RegisterForm({ onBack }: { onBack: () => void }) {
+  const navigate = useNavigate()
+  const [serverError, setServerError] = useState('')
+  const { register, handleSubmit, formState } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+  })
 
-export function AuthPage() {
-  const [tab, setTab] = useState<Tab>('email')
+  const submit = async (data: RegisterInput) => {
+    setServerError('')
+    try {
+      const res = await registerApi(data.full_name, data.email, data.password, data.phone_number)
+      authStore.setSession(res)
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      const msg =
+        (err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Registration failed'
+      setServerError(msg)
+    }
+  }
 
   return (
-    <section className="grid gap-5 md:grid-cols-[1.2fr_1fr]">
-      <article className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Welcome</p>
-        <h2 className="mt-2 text-2xl font-bold">Sign in to inSwing</h2>
-        <p className="mt-3 max-w-xl text-sm text-[var(--text-muted)] leading-relaxed">
-          Professional cricket scoring with ball-by-ball accuracy, real-time live scorecards,
-          and comprehensive match management — built for every level of the game.
-        </p>
-      </article>
+    <div className="w-full max-w-md px-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-6 flex items-center gap-1 text-sm text-[#becabc] transition hover:text-emerald-400"
+      >
+        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back
+      </button>
 
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-6">
-        {/* Tab switcher */}
-        <div className="mb-5 flex rounded-lg border border-[var(--line)] p-1 text-sm">
-          {(['email', 'otp'] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
-                tab === t
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {t === 'email' ? 'Email' : 'Phone OTP'}
-            </button>
-          ))}
+      <h2 className="mb-2 text-2xl font-bold text-white">Create Account</h2>
+      <p className="mb-8 text-sm text-[#becabc]">Join the professional scoring platform</p>
+
+      <form onSubmit={handleSubmit(submit)} className="space-y-5">
+        <Field label="Full Name" error={formState.errors.full_name?.message}>
+          <input {...register('full_name')} placeholder="John Doe" className={inputClass} />
+        </Field>
+
+        <Field label="Email" error={formState.errors.email?.message}>
+          <input {...register('email')} type="email" placeholder="you@example.com" className={inputClass} />
+        </Field>
+
+        <Field label="Phone (optional)" error={formState.errors.phone_number?.message}>
+          <input {...register('phone_number')} type="tel" placeholder="+91 98765 43210" className={inputClass} />
+        </Field>
+
+        <Field label="Password" error={formState.errors.password?.message}>
+          <input {...register('password')} type="password" placeholder="••••••••" className={inputClass} />
+        </Field>
+
+        <Field label="Confirm Password" error={formState.errors.confirm_password?.message}>
+          <input {...register('confirm_password')} type="password" placeholder="••••••••" className={inputClass} />
+        </Field>
+
+        {serverError && (
+          <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-3 text-xs text-red-400">
+            {serverError}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={formState.isSubmitting}
+          className="w-full h-14 rounded-lg bg-[#1B8A4A] text-white font-bold text-lg shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+        >
+          {formState.isSubmitting ? 'Creating account…' : 'Create Account'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+// ── Landing ─────────────────────────────────────────────────────────────────
+function Landing({ onLogin, onRegister }: { onLogin: () => void; onRegister: () => void }) {
+  return (
+    <section className="flex flex-col items-center px-4">
+      {/* Logo */}
+      <div className="relative group mb-8">
+        <div className="absolute -inset-1 rounded-full bg-emerald-500 opacity-25 blur group-hover:opacity-50 transition duration-1000" />
+        <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#2A3A4A] bg-[#1B8A4A] shadow-2xl">
+          <span className="font-mono text-[64px] font-bold italic tracking-tighter text-white">
+            iS
+          </span>
         </div>
+      </div>
 
-        {tab === 'email' ? <EmailLoginForm /> : <OTPLoginForm />}
+      {/* Title */}
+      <h1 className="mb-2 text-[40px] font-bold leading-none tracking-tight text-white">inSwing</h1>
+      <p className="mb-10 text-sm font-semibold uppercase tracking-widest text-[#becabc] opacity-80">
+        Professional Cricket Scoring
+      </p>
+
+      {/* Buttons */}
+      <div className="w-full max-w-xs space-y-4">
+        <button
+          onClick={onLogin}
+          className="flex h-14 w-full items-center justify-center rounded-lg bg-[#1B8A4A] text-lg font-bold text-white shadow-lg transition-transform active:scale-[0.98]"
+        >
+          Login
+        </button>
+        <button
+          onClick={onRegister}
+          className="flex h-14 w-full items-center justify-center rounded-lg border border-[#2A3A4A] bg-[#1b211c] text-lg font-bold text-[#dfe4dc] transition-all hover:bg-[#262b26] active:scale-[0.98]"
+        >
+          Register
+        </button>
+      </div>
+
+      {/* Footer ornament */}
+      <div className="mt-12 flex items-center gap-3">
+        <div className="h-px w-8 bg-[#2A3A4A]" />
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#becabc] opacity-60">
+          Broadcast Partner
+        </span>
+        <div className="h-px w-8 bg-[#2A3A4A]" />
       </div>
     </section>
+  )
+}
+
+// ── Page Export ──────────────────────────────────────────────────────────────
+export function AuthPage() {
+  const [view, setView] = useState<AuthView>('landing')
+
+  return (
+    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden broadcast-mesh">
+      {/* Background glow */}
+      <div className="pointer-events-none absolute inset-0 opacity-20">
+        <div className="absolute -left-[10%] -top-[10%] h-[40%] w-[40%] rounded-full bg-[#3ca360] blur-[120px]" />
+        <div className="absolute -bottom-[10%] -right-[10%] h-[40%] w-[40%] rounded-full bg-[#df6d7f] opacity-30 blur-[120px]" />
+      </div>
+
+      {/* Content */}
+      <div className="z-10 w-full flex flex-col items-center">
+        {view === 'landing' && (
+          <Landing onLogin={() => setView('login')} onRegister={() => setView('register')} />
+        )}
+        {view === 'login' && <LoginForm onBack={() => setView('landing')} />}
+        {view === 'register' && <RegisterForm onBack={() => setView('landing')} />}
+      </div>
+
+      {/* Version badge */}
+      <p className="absolute bottom-4 text-[10px] font-semibold uppercase tracking-widest text-[#becabc] opacity-40">
+        &copy; 2024 inSwing Broadcast Technologies
+      </p>
+    </main>
   )
 }
