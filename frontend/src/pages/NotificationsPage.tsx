@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom'
+import { BellOff, Trophy, UserPlus, RefreshCw, Gavel } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 interface Notification {
   id: string
@@ -17,7 +19,7 @@ export function NotificationsPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="pb-8 pt-6 px-4 max-w-md mx-auto">
+    <div className="pb-8 pt-6 px-6 max-w-3xl mx-auto">
       <section className="mb-6">
         <h2 className="text-2xl font-bold text-[#dfe4dc]">Notifications</h2>
         <p className="text-sm text-[#becabc]">Match invites, requests & updates</p>
@@ -25,7 +27,7 @@ export function NotificationsPage() {
 
       {mockNotifications.length === 0 && (
         <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-10 text-center">
-          <span className="material-symbols-outlined mb-3 text-4xl text-[#889488]">notifications_none</span>
+          <BellOff size={32} className="mx-auto mb-3 text-[#889488]" />
           <p className="text-sm font-medium text-[#becabc]">All caught up!</p>
           <p className="mt-1 text-xs text-[#889488]">
             Invites, match updates and friend requests will appear here.
@@ -57,12 +59,14 @@ function NotificationCard({
   notification: Notification
   onAction: () => void
 }) {
-  const iconMap: Record<Notification['type'], string> = {
-    match_invite: 'sports_cricket',
-    friend_request: 'person_add',
-    match_update: 'update',
-    rules_proposed: 'gavel',
+  const iconMap: Record<Notification['type'], LucideIcon> = {
+    match_invite: Trophy,
+    friend_request: UserPlus,
+    match_update: RefreshCw,
+    rules_proposed: Gavel,
   }
+
+  const Icon = iconMap[notification.type]
 
   return (
     <button
@@ -73,9 +77,7 @@ function NotificationCard({
     >
       <div className="flex gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1b211c] border border-[#3e4a3f]">
-          <span className="material-symbols-outlined text-emerald-500 text-xl">
-            {iconMap[notification.type]}
-          </span>
+          <Icon size={18} className="text-emerald-500" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-[#dfe4dc]">{notification.title}</p>

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { authStore } from '../lib/auth-store'
 import { fetchMyMatches } from '../lib/api/matches'
+import { Trophy } from 'lucide-react'
 import type { MatchResponse } from '../lib/api/matches'
 
 function timeAgo(date: string) {
@@ -30,7 +31,7 @@ export function DashboardPage() {
     .slice(0, 5)
 
   return (
-    <div className="pb-8 pt-6 px-4 max-w-md mx-auto">
+    <div className="pb-8 pt-6 px-6 max-w-5xl mx-auto">
       {/* Welcome */}
       <section className="mb-6">
         <h2 className="text-2xl font-bold text-[#dfe4dc]">
@@ -66,7 +67,7 @@ export function DashboardPage() {
       {!isLoading && liveMatches.length === 0 && (
         <section className="mb-6">
           <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 text-center">
-            <span className="material-symbols-outlined mb-2 text-3xl text-[#889488]">sports_cricket</span>
+            <Trophy size={28} className="mx-auto mb-2 text-[#889488]" />
             <p className="text-sm text-[#becabc]">No live matches right now</p>
             <button
               onClick={() => navigate('/matches/new')}

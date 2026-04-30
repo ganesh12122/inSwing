@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { fetchMyMatches } from '../lib/api/matches'
+import { Trophy } from 'lucide-react'
 import type { MatchResponse } from '../lib/api/matches'
 
 type TabFilter = 'all' | 'live' | 'upcoming' | 'finished'
@@ -42,7 +43,7 @@ export function MatchesListPage() {
   ]
 
   return (
-    <div className="pb-8 pt-6 px-4 max-w-md mx-auto">
+    <div className="pb-8 pt-6 px-6 max-w-5xl mx-auto">
       <section className="mb-6">
         <h2 className="text-2xl font-bold text-[#dfe4dc]">My Matches</h2>
         <p className="text-sm text-[#becabc]">All your matches in one place</p>
@@ -75,7 +76,7 @@ export function MatchesListPage() {
       {/* Empty */}
       {!isLoading && matches.length === 0 && (
         <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-10 text-center">
-          <span className="material-symbols-outlined mb-3 text-4xl text-[#889488]">sports_cricket</span>
+          <Trophy size={32} className="mx-auto mb-3 text-[#889488]" />
           <p className="text-sm font-medium text-[#becabc]">No matches found</p>
           <button
             onClick={() => navigate('/matches/new')}

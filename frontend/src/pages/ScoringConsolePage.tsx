@@ -11,6 +11,7 @@ import {
   getTeams,
   markTeamReady,
 } from '../lib/api/matches'
+import { MoreHorizontal, Trophy } from 'lucide-react'
 import type {
   MatchResponse,
   InningsResponse,
@@ -478,7 +479,7 @@ export function ScoringConsolePage() {
               type="button"
               className="aspect-square flex items-center justify-center rounded-full bg-[#303630] border border-[#3e4a3f] text-[#889488] transition-transform active:scale-95"
             >
-              <span className="material-symbols-outlined">more_horiz</span>
+              <MoreHorizontal size={18} />
             </button>
           </div>
 
@@ -583,7 +584,7 @@ function MatchHeader({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-500 text-lg">sports_cricket</span>
+            <Trophy size={18} className="text-emerald-500" />
             <h2 className="text-lg font-bold text-[#dfe4dc]">
               {match.team_a_name} vs {match.team_b_name ?? 'TBD'}
             </h2>

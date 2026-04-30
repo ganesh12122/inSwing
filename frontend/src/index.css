@@ -63,10 +63,7 @@ a {
   background-size: 24px 24px;
 }
 
-/* Material symbols */
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
+/* Icons are rendered via lucide-react (SVG) — no font dependency */
 
 /* Hide scrollbar utility */
 .no-scrollbar::-webkit-scrollbar { display: none; }

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { createMatch } from '../lib/api/matches'
+import { Zap, Users, ArrowLeft, CheckCircle } from 'lucide-react'
 import type { MatchType } from '../lib/api/matches'
 import type { AxiosError } from 'axios'
 
@@ -101,7 +102,7 @@ export function MatchStudioPage() {
   // ── Step 1: Type selection ──────────────────────────────────────────────
   if (step === 'type') {
     return (
-      <div className="pb-8 pt-6 px-4 max-w-md mx-auto">
+      <div className="pb-8 pt-6 px-6 max-w-2xl mx-auto">
         <section className="mb-8">
           <h2 className="text-2xl font-bold text-[#dfe4dc]">New Match</h2>
           <p className="text-sm text-[#becabc]">Choose your match format</p>
@@ -115,7 +116,7 @@ export function MatchStudioPage() {
           >
             <div className="flex items-center gap-3 mb-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1B8A4A]">
-                <span className="material-symbols-outlined text-white">bolt</span>
+                <Zap size={18} className="text-white" />
               </div>
               <h3 className="text-lg font-bold text-[#dfe4dc]">Quick Match</h3>
             </div>
@@ -131,7 +132,7 @@ export function MatchStudioPage() {
           >
             <div className="flex items-center gap-3 mb-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3ca360]">
-                <span className="material-symbols-outlined text-white">group</span>
+                <Users size={18} className="text-white" />
               </div>
               <h3 className="text-lg font-bold text-[#dfe4dc]">Dual Captain</h3>
             </div>
@@ -147,11 +148,9 @@ export function MatchStudioPage() {
   // ── Step 3: Success ─────────────────────────────────────────────────────
   if (step === 'done' && createdMatchId) {
     return (
-      <div className="flex flex-col items-center justify-center px-4 py-16 text-center max-w-md mx-auto">
+      <div className="flex flex-col items-center justify-center px-6 py-16 text-center max-w-2xl mx-auto">
         <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-600/20 border-2 border-emerald-600">
-          <span className="material-symbols-outlined text-4xl text-emerald-400" style={{ fontVariationSettings: "'FILL' 1" }}>
-            check_circle
-          </span>
+          <CheckCircle size={36} className="text-emerald-400" />
         </div>
         <h2 className="text-xl font-bold text-white">Match Created!</h2>
         <p className="mt-2 text-sm text-[#becabc]">
@@ -179,7 +178,7 @@ export function MatchStudioPage() {
 
   // ── Step 2: Configuration ───────────────────────────────────────────────
   return (
-    <div className="pb-8 pt-6 px-4 max-w-md mx-auto">
+    <div className="pb-8 pt-6 px-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button
@@ -187,7 +186,7 @@ export function MatchStudioPage() {
           onClick={() => setStep('type')}
           className="flex h-10 w-10 items-center justify-center rounded-full border border-[#3e4a3f] text-[#becabc] transition hover:border-emerald-700"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          <ArrowLeft size={18} />
         </button>
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500">
@@ -235,7 +234,6 @@ export function MatchStudioPage() {
                 onClick={() => applyPreset(p)}
                 className="flex items-center gap-1.5 rounded-full border border-[#3e4a3f] bg-[#1b211c] px-3 py-1.5 text-xs font-semibold text-[#becabc] transition hover:border-emerald-700 hover:text-emerald-400"
               >
-                <span className="material-symbols-outlined text-sm">{p.icon}</span>
                 {p.label}
               </button>
             ))}
@@ -269,15 +267,12 @@ export function MatchStudioPage() {
           {/* Toggles */}
           <div className="space-y-2">
             {[
-              { name: 'free_hit' as const, label: 'Free Hit', icon: 'shield' },
-              { name: 'last_man_batting' as const, label: 'Last Man Batting', icon: 'person' },
-              { name: 'tennis_ball' as const, label: 'Tennis Ball', icon: 'sports_tennis' },
+              { name: 'free_hit' as const, label: 'Free Hit' },
+              { name: 'last_man_batting' as const, label: 'Last Man Batting' },
+              { name: 'tennis_ball' as const, label: 'Tennis Ball' },
             ].map((t) => (
               <label key={t.name} className="flex items-center justify-between rounded-lg border border-[#3e4a3f] bg-[#1b211c] px-4 py-3 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#889488] text-lg">{t.icon}</span>
-                  <span className="text-sm font-medium text-[#dfe4dc]">{t.label}</span>
-                </div>
+                <span className="text-sm font-medium text-[#dfe4dc]">{t.label}</span>
                 <input type="checkbox" {...register(t.name)} className="h-5 w-5 rounded accent-emerald-600" />
               </label>
             ))}

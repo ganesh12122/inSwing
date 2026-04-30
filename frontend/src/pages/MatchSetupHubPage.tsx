@@ -10,6 +10,7 @@ import {
   inviteOpponent,
   createInnings,
 } from '../lib/api/matches'
+import { ArrowLeft, Check, CheckCircle, Coins } from 'lucide-react'
 import type { MatchRules } from '../lib/api/matches'
 import type { AxiosError } from 'axios'
 
@@ -61,14 +62,14 @@ export function MatchSetupHubPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#0c1821] pb-8 pt-6 px-4 max-w-md mx-auto">
+    <div className="min-h-dvh bg-[#0c1821] pb-8 pt-6 px-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate('/dashboard')}
           className="flex h-10 w-10 items-center justify-center rounded-full border border-[#3e4a3f] text-[#becabc]"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          <ArrowLeft size={18} />
         </button>
         <div>
           <h2 className="text-lg font-bold text-[#dfe4dc]">
@@ -93,7 +94,7 @@ export function MatchSetupHubPage() {
                 }`}
               >
                 {i < currentStep ? (
-                  <span className="material-symbols-outlined text-sm">check</span>
+                  <Check size={14} />
                 ) : (
                   i + 1
                 )}
@@ -161,7 +162,7 @@ function InviteStep({ matchId, match, error, setError, onDone }: {
   if (match.match_type === 'quick') {
     return (
       <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 text-center">
-        <span className="material-symbols-outlined mb-2 text-3xl text-emerald-500">check_circle</span>
+        <CheckCircle size={28} className="mx-auto mb-2 text-emerald-500" />
         <p className="text-sm text-[#becabc]">Quick match — no invite needed. Proceed to add players.</p>
       </div>
     )
@@ -349,7 +350,7 @@ function TossStep({ matchId, match, error, setError, onDone, navigate }: {
   if (match.toss_winner) {
     return (
       <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 text-center space-y-4">
-        <span className="material-symbols-outlined text-4xl text-emerald-500">monetization_on</span>
+        <Coins size={32} className="mx-auto text-emerald-500" />
         <p className="text-sm text-[#becabc]">
           <strong className="text-[#dfe4dc]">Team {match.toss_winner === 'A' ? match.team_a_name : match.team_b_name}</strong> won the toss and elected to <strong className="text-emerald-400">{match.toss_decision}</strong>
         </p>

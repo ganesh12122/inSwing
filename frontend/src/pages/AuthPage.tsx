@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { loginWithEmail, register as registerApi } from '../lib/api/auth'
 import { authStore } from '../lib/auth-store'
+import { ArrowLeft } from 'lucide-react'
 import type { AxiosError } from 'axios'
 
 type AuthView = 'landing' | 'login' | 'register'
@@ -80,7 +81,7 @@ function LoginForm({ onBack }: { onBack: () => void }) {
         onClick={onBack}
         className="mb-6 flex items-center gap-1 text-sm text-[#becabc] transition hover:text-emerald-400"
       >
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        <ArrowLeft size={16} />
         Back
       </button>
 
@@ -142,7 +143,7 @@ function RegisterForm({ onBack }: { onBack: () => void }) {
         onClick={onBack}
         className="mb-6 flex items-center gap-1 text-sm text-[#becabc] transition hover:text-emerald-400"
       >
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        <ArrowLeft size={16} />
         Back
       </button>
 

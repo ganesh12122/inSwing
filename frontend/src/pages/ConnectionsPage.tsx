@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { searchUsers } from '../lib/api/users'
+import { Search, UserSearch, Users, UserPlus } from 'lucide-react'
 
 type Tab = 'connections' | 'requests' | 'discover'
 
@@ -21,7 +22,7 @@ export function ConnectionsPage() {
   ]
 
   return (
-    <div className="pb-8 pt-6 px-4 max-w-md mx-auto">
+    <div className="pb-8 pt-6 px-6 max-w-4xl mx-auto">
       {/* Header */}
       <section className="mb-6">
         <h2 className="text-2xl font-bold text-[#dfe4dc]">Connections</h2>
@@ -31,9 +32,7 @@ export function ConnectionsPage() {
       {/* Search */}
       <section className="mb-5">
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#889488] text-xl">
-            search
-          </span>
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#889488]" />
           <input
             type="text"
             value={search}
@@ -66,7 +65,7 @@ export function ConnectionsPage() {
         <section className="space-y-3">
           {search.length < 2 && (
             <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-8 text-center">
-              <span className="material-symbols-outlined mb-2 text-3xl text-[#889488]">person_search</span>
+              <UserSearch size={28} className="mx-auto mb-2 text-[#889488]" />
               <p className="text-sm text-[#becabc]">Search for players by name or INS-ID</p>
               <p className="mt-1 text-xs text-[#889488]">Type at least 2 characters to search</p>
             </div>
@@ -96,7 +95,7 @@ export function ConnectionsPage() {
 
       {tab === 'connections' && (
         <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-8 text-center">
-          <span className="material-symbols-outlined mb-2 text-3xl text-[#889488]">group</span>
+          <Users size={28} className="mx-auto mb-2 text-[#889488]" />
           <p className="text-sm text-[#becabc]">Your connections will appear here</p>
           <p className="mt-1 text-xs text-[#889488]">Search and add players to build your network</p>
         </div>
@@ -104,7 +103,7 @@ export function ConnectionsPage() {
 
       {tab === 'requests' && (
         <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-8 text-center">
-          <span className="material-symbols-outlined mb-2 text-3xl text-[#889488]">person_add</span>
+          <UserPlus size={28} className="mx-auto mb-2 text-[#889488]" />
           <p className="text-sm text-[#becabc]">No pending requests</p>
         </div>
       )}

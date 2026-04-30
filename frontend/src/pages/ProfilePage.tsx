@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { authStore } from '../lib/auth-store'
 import { getUserProfile } from '../lib/api/users'
 import { logout } from '../lib/api/auth'
+import { BadgeCheck, Mail } from 'lucide-react'
 
 export function ProfilePage() {
   const navigate = useNavigate()
@@ -32,7 +33,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="pb-8 pt-6 px-4 max-w-md mx-auto">
+    <div className="pb-8 pt-6 px-6 max-w-3xl mx-auto">
       {/* Hero Section */}
       <section className="relative mb-6 rounded-2xl border border-[#2a3a4a] bg-[#162029] p-6 overflow-hidden">
         {/* BG glow */}
@@ -50,7 +51,7 @@ export function ProfilePage() {
 
           {/* INS-ID */}
           <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#1b211c] border border-[#3e4a3f] px-3 py-1">
-            <span className="material-symbols-outlined text-sm text-emerald-500">verified</span>
+            <BadgeCheck size={14} className="text-emerald-500" />
             <span className="font-mono text-xs font-bold text-emerald-400 tracking-wide">
               INS-{user?.id?.slice(0, 6).toUpperCase() ?? 'XXXXXX'}
             </span>
@@ -63,7 +64,7 @@ export function ProfilePage() {
           <div className="mt-3 flex gap-4 text-xs text-[#889488]">
             {userInfo?.email && (
               <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">mail</span>
+                <Mail size={14} />
                 {userInfo.email}
               </span>
             )}
