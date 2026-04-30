@@ -154,7 +154,7 @@ function LiveCard({ match, onClick }: { match: MatchResponse; onClick: () => voi
       </div>
       <div className="border-t border-[#3e4a3f] pt-3 flex items-center justify-between">
         <span className="text-xs text-[#becabc]">{match.venue ?? 'Venue TBD'}</span>
-        <span className="text-[10px] font-semibold text-emerald-400 uppercase">{match.overs} overs</span>
+        <span className="text-[10px] font-semibold text-emerald-400 uppercase">{match.rules.overs_limit} overs</span>
       </div>
     </button>
   )

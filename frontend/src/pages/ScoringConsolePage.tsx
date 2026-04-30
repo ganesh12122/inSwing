@@ -449,24 +449,37 @@ export function ScoringConsolePage() {
         {/* Run buttons */}
         <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
           <p className="mb-3 text-xs font-medium text-[var(--text-muted)]">Runs</p>
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-4 gap-3">
             {RUN_BUTTONS.map((r) => (
               <button
                 key={r}
                 type="button"
                 disabled={submitting}
                 onClick={() => handleRecordBall(r)}
-                className={`flex h-14 items-center justify-center rounded-lg border text-xl font-bold transition active:scale-95 disabled:opacity-50 ${
-                  r === 4
-                    ? 'border-blue-500/25 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
-                    : r === 6
-                      ? 'border-purple-500/25 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20'
-                      : 'border-[var(--line)] bg-[var(--bg-surface)] hover:bg-[var(--line)]'
+                className={`aspect-square flex items-center justify-center rounded-full font-mono text-2xl font-bold transition-transform active:scale-95 disabled:opacity-50 shadow-md ${
+                  r === 4 || r === 6
+                    ? 'bg-[#3ca360] text-white'
+                    : 'bg-[#303630] border border-[#3e4a3f] text-[#dfe4dc]'
                 }`}
               >
                 {r}
               </button>
             ))}
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => { setSelectedWicket('bowled'); handleRecordBall(0) }}
+              className="aspect-square flex flex-col items-center justify-center rounded-full bg-red-500 text-white font-mono text-2xl font-bold transition-transform active:scale-95 disabled:opacity-50 shadow-lg"
+            >
+              <span>W</span>
+              <span className="text-[9px] font-semibold -mt-1">WICKET</span>
+            </button>
+            <button
+              type="button"
+              className="aspect-square flex items-center justify-center rounded-full bg-[#303630] border border-[#3e4a3f] text-[#889488] transition-transform active:scale-95"
+            >
+              <span className="material-symbols-outlined">more_horiz</span>
+            </button>
           </div>
 
           {/* Extras */}
@@ -552,7 +565,7 @@ export function ScoringConsolePage() {
 function LoadingState() {
   return (
     <div className="flex items-center justify-center py-20">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
     </div>
   )
 }
@@ -566,23 +579,30 @@ function MatchHeader({
   target?: number | null
 }) {
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] px-5 py-4">
+    <div className="rounded-xl border border-[#3e4a3f] bg-[#1b211c] px-5 py-4 shadow-lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
-            {match.status === 'live' ? 'LIVE' : match.status.toUpperCase()}
-          </p>
-          <h2 className="mt-1 text-lg font-bold">
-            {match.team_a_name} vs {match.team_b_name ?? 'TBD'}
-          </h2>
-          {match.venue && <p className="text-sm text-[var(--text-muted)]">{match.venue}</p>}
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-emerald-500 text-lg">sports_cricket</span>
+            <h2 className="text-lg font-bold text-[#dfe4dc]">
+              {match.team_a_name} vs {match.team_b_name ?? 'TBD'}
+            </h2>
+            {match.status === 'live' && (
+              <span className="flex items-center gap-1 rounded-sm bg-red-500 px-1.5 py-0.5">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                <span className="text-[10px] font-bold uppercase text-white">LIVE</span>
+              </span>
+            )}
+          </div>
+          {match.venue && <p className="text-sm text-[#becabc] mt-0.5">{match.venue}</p>}
         </div>
         {innings && (
           <div className="text-right">
-            <p className="text-2xl font-bold">
-              {innings.runs}<span className="text-base text-[var(--text-muted)]">/{innings.wickets}</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#becabc] block mb-0.5">TOTAL SCORE</span>
+            <p className="font-mono text-3xl font-bold text-emerald-400">
+              {innings.runs}<span className="text-lg text-[#becabc]">/{innings.wickets}</span>
             </p>
-            <p className="text-sm text-[var(--text-muted)]">{innings.overs_bowled} overs</p>
+            <p className="font-mono text-sm text-[#becabc]">{innings.overs_bowled} ov</p>
           </div>
         )}
       </div>
