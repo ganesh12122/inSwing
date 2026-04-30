@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   fetchMatch,
   fetchInnings,
+  fetchBalls,
   createInnings,
   recordBall,
   recordToss,
@@ -17,6 +18,7 @@ import type {
   InningsResponse,
   BallResponse,
   TeamsResponse,
+  PlayerInMatch,
 } from '../lib/api/matches'
 import { authStore } from '../lib/auth-store'
 import { createMatchSocket } from '../lib/ws'
@@ -157,6 +159,12 @@ export function ScoringConsolePage() {
     enabled: !!matchId,
   })
 
+  const { data: allBalls, refetch: refetchBalls } = useQuery({
+    queryKey: ['balls', matchId, currentInnings?.id],
+    queryFn: () => fetchBalls(matchId!, currentInnings!.id),
+    enabled: !!matchId && !!currentInnings,
+  })
+
   // Set current innings from fetched data
   useEffect(() => {
     if (innings && innings.length > 0) {
@@ -243,13 +251,14 @@ export function ScoringConsolePage() {
         setSelectedExtras(null)
         setSelectedWicket(null)
         refetchInnings()
+        refetchBalls()
       } catch (err) {
         setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Failed to record ball')
       } finally {
         setSubmitting(false)
       }
     },
-    [matchId, currentInnings, currentOver, currentBall, selectedExtras, selectedWicket, strikerId, nonStrikerId, bowlerId, submitting, refetchInnings],
+    [matchId, currentInnings, currentOver, currentBall, selectedExtras, selectedWicket, strikerId, nonStrikerId, bowlerId, submitting, refetchInnings, refetchBalls],
   )
 
   const handleToss = async () => {
@@ -447,58 +456,17 @@ export function ScoringConsolePage() {
 
       {/* Batsmen & Bowler Panel */}
       <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-mid)] p-4">
-        <div className="grid gap-3 md:grid-cols-3">
-          {/* Striker */}
-          <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
-              🏏 On Strike
-            </label>
-            <select
-              value={strikerId ?? ''}
-              onChange={(e) => setStrikerId(e.target.value || null)}
-              className="w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none focus:border-emerald-500"
-            >
-              <option value="">Select batsman...</option>
-              {battingPlayers.filter(p => p.id !== nonStrikerId).map(p => (
-                <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Non-Striker */}
-          <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-              Non-Striker
-            </label>
-            <select
-              value={nonStrikerId ?? ''}
-              onChange={(e) => setNonStrikerId(e.target.value || null)}
-              className="w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none focus:border-emerald-500"
-            >
-              <option value="">Select batsman...</option>
-              {battingPlayers.filter(p => p.id !== strikerId).map(p => (
-                <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Bowler */}
-          <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-red-400">
-              ⚾ Bowler
-            </label>
-            <select
-              value={bowlerId ?? ''}
-              onChange={(e) => setBowlerId(e.target.value || null)}
-              className="w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-3 py-2 text-sm outline-none focus:border-emerald-500"
-            >
-              <option value="">Select bowler...</option>
-              {bowlingPlayers.map(p => (
-                <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <BatsmenBowlerPanel
+          battingPlayers={battingPlayers}
+          bowlingPlayers={bowlingPlayers}
+          strikerId={strikerId}
+          nonStrikerId={nonStrikerId}
+          bowlerId={bowlerId}
+          onSetStriker={setStrikerId}
+          onSetNonStriker={setNonStrikerId}
+          onSetBowler={setBowlerId}
+          allBalls={allBalls ?? []}
+        />
       </div>
 
       {/* This over strip */}
@@ -648,6 +616,167 @@ export function ScoringConsolePage() {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
+
+function BatsmenBowlerPanel({
+  battingPlayers,
+  bowlingPlayers,
+  strikerId,
+  nonStrikerId,
+  bowlerId,
+  onSetStriker,
+  onSetNonStriker,
+  onSetBowler,
+  allBalls,
+}: {
+  battingPlayers: PlayerInMatch[]
+  bowlingPlayers: PlayerInMatch[]
+  strikerId: string | null
+  nonStrikerId: string | null
+  bowlerId: string | null
+  onSetStriker: (id: string | null) => void
+  onSetNonStriker: (id: string | null) => void
+  onSetBowler: (id: string | null) => void
+  allBalls: BallResponse[]
+}) {
+  // Compute batting stats
+  const getBatStats = (playerId: string | null) => {
+    if (!playerId) return { runs: 0, balls: 0, fours: 0, sixes: 0, sr: '0.0' }
+    const batBalls = allBalls.filter(b => b.batsman_id === playerId)
+    const legalBalls = batBalls.filter(b => b.is_legal_delivery)
+    const runs = batBalls.reduce((sum, b) => sum + b.runs_off_bat, 0)
+    const fours = batBalls.filter(b => b.runs_off_bat === 4).length
+    const sixes = batBalls.filter(b => b.runs_off_bat === 6).length
+    const ballsFaced = legalBalls.length
+    const sr = ballsFaced > 0 ? ((runs / ballsFaced) * 100).toFixed(1) : '0.0'
+    return { runs, balls: ballsFaced, fours, sixes, sr }
+  }
+
+  // Compute bowling stats
+  const getBowlStats = (playerId: string | null) => {
+    if (!playerId) return { overs: '0.0', runs: 0, wickets: 0, econ: '0.0' }
+    const bowlBalls = allBalls.filter(b => b.bowler_id === playerId)
+    const legalBalls = bowlBalls.filter(b => b.is_legal_delivery).length
+    const runs = bowlBalls.reduce((sum, b) => sum + b.total_runs, 0)
+    const wickets = bowlBalls.filter(b => b.wicket_type).length
+    const overs = `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`
+    const econ = legalBalls > 0 ? ((runs / legalBalls) * 6).toFixed(1) : '0.0'
+    return { overs, runs, wickets, econ }
+  }
+
+  const getPlayerName = (id: string | null, players: PlayerInMatch[]) => {
+    if (!id) return null
+    const p = players.find(pl => pl.id === id)
+    return p ? (p.display_name ?? p.guest_name ?? 'Player') : null
+  }
+
+  const strikerStats = getBatStats(strikerId)
+  const nonStrikerStats = getBatStats(nonStrikerId)
+  const bowlerStats = getBowlStats(bowlerId)
+  const strikerName = getPlayerName(strikerId, battingPlayers)
+  const nonStrikerName = getPlayerName(nonStrikerId, battingPlayers)
+  const bowlerName = getPlayerName(bowlerId, bowlingPlayers)
+
+  return (
+    <div className="space-y-3">
+      {/* Batting figures */}
+      <div className="grid gap-3 md:grid-cols-2">
+        {/* Striker card */}
+        <div className={`rounded-lg border p-3 ${strikerId ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-[var(--line)]'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">🏏 Striker</span>
+            {strikerId && (
+              <span className="font-mono text-lg font-bold text-emerald-400">
+                {strikerStats.runs}<span className="text-xs text-[var(--text-muted)]"> ({strikerStats.balls})</span>
+              </span>
+            )}
+          </div>
+          {strikerId ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#dfe4dc]">{strikerName}</span>
+              <span className="text-[10px] text-[var(--text-muted)]">
+                {strikerStats.fours}×4 {strikerStats.sixes}×6 SR {strikerStats.sr}
+              </span>
+            </div>
+          ) : null}
+          <select
+            value={strikerId ?? ''}
+            onChange={(e) => onSetStriker(e.target.value || null)}
+            className="mt-2 w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-2 py-1.5 text-xs outline-none focus:border-emerald-500"
+          >
+            <option value="">Select batsman...</option>
+            {battingPlayers.filter(p => p.id !== nonStrikerId).map(p => (
+              <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Non-Striker card */}
+        <div className={`rounded-lg border p-3 ${nonStrikerId ? 'border-[#3e4a3f] bg-[var(--bg-deep)]' : 'border-[var(--line)]'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Non-Striker</span>
+            {nonStrikerId && (
+              <span className="font-mono text-lg font-bold text-[#becabc]">
+                {nonStrikerStats.runs}<span className="text-xs text-[var(--text-muted)]"> ({nonStrikerStats.balls})</span>
+              </span>
+            )}
+          </div>
+          {nonStrikerId ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#dfe4dc]">{nonStrikerName}</span>
+              <span className="text-[10px] text-[var(--text-muted)]">
+                {nonStrikerStats.fours}×4 {nonStrikerStats.sixes}×6 SR {nonStrikerStats.sr}
+              </span>
+            </div>
+          ) : null}
+          <select
+            value={nonStrikerId ?? ''}
+            onChange={(e) => onSetNonStriker(e.target.value || null)}
+            className="mt-2 w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-2 py-1.5 text-xs outline-none focus:border-emerald-500"
+          >
+            <option value="">Select batsman...</option>
+            {battingPlayers.filter(p => p.id !== strikerId).map(p => (
+              <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Bowler card */}
+      <div className={`rounded-lg border p-3 ${bowlerId ? 'border-red-500/30 bg-red-500/5' : 'border-[var(--line)]'}`}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-red-400">⚾ Bowler</span>
+          {bowlerId && (
+            <span className="font-mono text-sm font-bold text-red-400">
+              {bowlerStats.overs}-{bowlerStats.runs}-{bowlerStats.wickets}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            {bowlerId && (
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-[#dfe4dc]">{bowlerName}</span>
+                <span className="text-[10px] text-[var(--text-muted)]">
+                  Econ {bowlerStats.econ}
+                </span>
+              </div>
+            )}
+            <select
+              value={bowlerId ?? ''}
+              onChange={(e) => onSetBowler(e.target.value || null)}
+              className="w-full rounded-md border border-[var(--line)] bg-[var(--bg-deep)] px-2 py-1.5 text-xs outline-none focus:border-emerald-500"
+            >
+              <option value="">Select bowler...</option>
+              {bowlingPlayers.map(p => (
+                <option key={p.id} value={p.id}>{p.display_name ?? p.guest_name ?? 'Player'}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function LoadingState() {
   return (

@@ -135,6 +135,9 @@ export interface BallResponse {
   innings_id: string
   over_number: number
   ball_in_over: number
+  batsman_id: string | null
+  non_striker_id: string | null
+  bowler_id: string | null
   runs_off_bat: number
   extras_type: string | null
   extras_runs: number
