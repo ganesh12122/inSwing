@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -37,11 +37,13 @@ class BallBase(BaseModel):
 
 class BallCreate(BallBase):
     """Schema for creating a new ball record."""
+
     pass
 
 
 class BallUpdate(BaseModel):
     """Schema for updating ball record (for undo functionality)."""
+
     runs_off_bat: Optional[int] = Field(None, ge=0, le=6)
     extras_type: Optional[ExtrasType] = None
     extras_runs: Optional[int] = Field(None, ge=0, le=5)
@@ -52,6 +54,7 @@ class BallUpdate(BaseModel):
 
 class BallResponse(BaseModel):
     """Schema for ball response."""
+
     id: str
     innings_id: str
     over_number: int
@@ -67,16 +70,18 @@ class BallResponse(BaseModel):
     client_event_id: Optional[str] = None
     ball_metadata: Optional[dict] = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
-    
+
+    @computed_field
     @property
     def total_runs(self) -> int:
         """Calculate total runs from this ball."""
         return self.runs_off_bat + self.extras_runs
-    
+
+    @computed_field
     @property
     def is_legal_delivery(self) -> bool:
         """Check if this is a legal delivery (not wide or no-ball)."""
-        return self.extras_type not in ['wide', 'no_ball']
+        return self.extras_type not in ["wide", "no_ball"]
