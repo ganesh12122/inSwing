@@ -18,6 +18,7 @@ class MatchStatus(str, Enum):
     teams_ready = "teams_ready"
     rules_proposed = "rules_proposed"
     rules_approved = "rules_approved"
+    toss_proposed = "toss_proposed"
     toss_done = "toss_done"
     live = "live"
     finished = "finished"
@@ -32,26 +33,42 @@ class TossDecision(str, Enum):
 
 class ScorerPermission(str, Enum):
     """Who can score in a match."""
-    host_only = "host_only"       # Only the host captain
-    captains = "captains"          # Either captain
-    designated = "designated"      # Designated scorer (third party)
-    all_players = "all_players"    # Any player in the match
+
+    host_only = "host_only"  # Only the host captain
+    captains = "captains"  # Either captain
+    designated = "designated"  # Designated scorer (third party)
+    all_players = "all_players"  # Any player in the match
 
 
 class MatchRules(BaseModel):
     """Match rules configuration — covers gully cricket to semi-pro."""
+
     overs_limit: int = Field(6, ge=1, le=50, description="Total overs per innings")
-    powerplay_overs: int = Field(0, ge=0, le=20, description="Powerplay overs (0 = none)")
-    max_overs_per_bowler: int = Field(0, ge=0, le=10, description="Max overs per bowler (0 = no limit)")
+    powerplay_overs: int = Field(
+        0, ge=0, le=20, description="Powerplay overs (0 = none)"
+    )
+    max_overs_per_bowler: int = Field(
+        0, ge=0, le=10, description="Max overs per bowler (0 = no limit)"
+    )
     wide_ball_runs: int = Field(1, ge=1, le=2, description="Runs awarded for wide ball")
     no_ball_runs: int = Field(1, ge=1, le=2, description="Runs awarded for no ball")
     free_hit: bool = Field(True, description="Free hit after no ball")
     super_over: bool = Field(False, description="Super over on tie")
-    min_players_per_team: int = Field(2, ge=2, le=11, description="Minimum players required per team")
-    max_players_per_team: int = Field(11, ge=2, le=15, description="Maximum players allowed per team")
-    last_man_batting: bool = Field(False, description="Allow last man to continue batting (gully cricket)")
-    tennis_ball: bool = Field(True, description="Tennis ball match (gully cricket default)")
-    boundary_runs: int = Field(4, ge=4, le=6, description="Runs for boundary hit along ground")
+    min_players_per_team: int = Field(
+        2, ge=2, le=11, description="Minimum players required per team"
+    )
+    max_players_per_team: int = Field(
+        11, ge=2, le=15, description="Maximum players allowed per team"
+    )
+    last_man_batting: bool = Field(
+        False, description="Allow last man to continue batting (gully cricket)"
+    )
+    tennis_ball: bool = Field(
+        True, description="Tennis ball match (gully cricket default)"
+    )
+    boundary_runs: int = Field(
+        4, ge=4, le=6, description="Runs for boundary hit along ground"
+    )
     scorer_permission: ScorerPermission = Field(
         ScorerPermission.host_only,
         description="Who has permission to score in this match",
@@ -60,6 +77,7 @@ class MatchRules(BaseModel):
 
 class MatchResult(BaseModel):
     """Match result information."""
+
     winner: str  # 'A' or 'B'
     winning_margin: int
     winning_type: str  # 'runs' or 'wickets'
@@ -69,12 +87,14 @@ class MatchResult(BaseModel):
 
 # === CREATE SCHEMAS ===
 
+
 class MatchCreate(BaseModel):
     """Schema for creating a new match.
 
     For quick matches: both team names required, no invitation flow.
     For dual_captain: only team_a_name required, team_b_name set by opponent.
     """
+
     match_type: MatchType = MatchType.quick
     team_a_name: str = Field(..., min_length=1, max_length=100)
     team_b_name: Optional[str] = Field(None, min_length=1, max_length=100)
@@ -93,6 +113,7 @@ class MatchCreate(BaseModel):
 
 class MatchUpdate(BaseModel):
     """Schema for updating match information."""
+
     team_a_name: Optional[str] = Field(None, min_length=1, max_length=100)
     team_b_name: Optional[str] = Field(None, min_length=1, max_length=100)
     venue: Optional[str] = Field(None, max_length=255)
@@ -104,24 +125,35 @@ class MatchUpdate(BaseModel):
 
 class TossUpdate(BaseModel):
     """Schema for updating toss result."""
+
     toss_winner: str = Field(..., pattern="^[AB]$")  # 'A' or 'B'
     toss_decision: TossDecision
 
 
 # === INVITATION SCHEMAS ===
 
+
 class MatchInviteRequest(BaseModel):
     """Schema for inviting an opponent captain."""
-    opponent_user_id: str = Field(..., min_length=1, description="User ID of the opponent captain")
-    message: Optional[str] = Field(None, max_length=500, description="Optional invitation message")
+
+    opponent_user_id: str = Field(
+        ..., min_length=1, description="User ID of the opponent captain"
+    )
+    message: Optional[str] = Field(
+        None, max_length=500, description="Optional invitation message"
+    )
 
 
 class MatchInviteAccept(BaseModel):
     """Schema for accepting a match invitation."""
-    team_b_name: str = Field(..., min_length=1, max_length=100, description="Opponent's team name")
+
+    team_b_name: str = Field(
+        ..., min_length=1, max_length=100, description="Opponent's team name"
+    )
 
 
 # === TEAM MANAGEMENT SCHEMAS ===
+
 
 class AddPlayerRequest(BaseModel):
     """Schema for adding a player to a team.
@@ -129,8 +161,11 @@ class AddPlayerRequest(BaseModel):
     For app users: provide user_id.
     For guest players: provide guest_name (is_guest auto-set).
     """
+
     user_id: Optional[str] = Field(None, description="User ID for registered players")
-    guest_name: Optional[str] = Field(None, min_length=1, max_length=255, description="Name for guest players")
+    guest_name: Optional[str] = Field(
+        None, min_length=1, max_length=255, description="Name for guest players"
+    )
     role: str = Field("batsman", description="Player role in this match")
 
     def model_post_init(self, __context: Any) -> None:
@@ -143,18 +178,22 @@ class AddPlayerRequest(BaseModel):
 
 class TeamReadyRequest(BaseModel):
     """Schema for marking a team as ready."""
+
     ready: bool = Field(True, description="Whether the team is ready")
 
 
 # === RULES NEGOTIATION SCHEMAS ===
 
+
 class RulesProposalRequest(BaseModel):
     """Schema for proposing match rules."""
+
     rules: MatchRules
 
 
 class RulesApprovalResponse(BaseModel):
     """Schema for rules approval status."""
+
     proposed_rules: Optional[MatchRules] = None
     rules_proposed_by: Optional[str] = None
     host_rules_approved: bool = False
@@ -167,8 +206,10 @@ class RulesApprovalResponse(BaseModel):
 
 # === RESPONSE SCHEMAS ===
 
+
 class MatchInDB(BaseModel):
     """Schema for match data from database."""
+
     id: str
     host_user_id: str
     opponent_captain_id: Optional[str] = None
@@ -196,6 +237,7 @@ class MatchInDB(BaseModel):
     result: Optional[MatchResult] = None
     toss_winner: Optional[str] = None
     toss_decision: Optional[TossDecision] = None
+    toss_recorded_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     started_at: Optional[datetime] = None
@@ -207,6 +249,7 @@ class MatchInDB(BaseModel):
 
 class MatchResponse(MatchInDB):
     """Schema for match responses — includes computed fields."""
+
     is_dual_captain: bool = False
     both_teams_ready: bool = False
     rules_agreed: bool = False
@@ -242,6 +285,7 @@ class MatchResponse(MatchInDB):
             "result": match.result,
             "toss_winner": match.toss_winner,
             "toss_decision": match.toss_decision,
+            "toss_recorded_by": match.toss_recorded_by,
             "created_at": match.created_at,
             "updated_at": match.updated_at,
             "started_at": match.started_at,
@@ -256,6 +300,7 @@ class MatchResponse(MatchInDB):
 
 class MatchListResponse(BaseModel):
     """Schema for match list responses."""
+
     matches: list[MatchResponse]
     total: int
     page: int

@@ -11,6 +11,7 @@ export type MatchStatus =
   | 'teams_ready'
   | 'rules_proposed'
   | 'rules_approved'
+  | 'toss_proposed'
   | 'toss_done'
   | 'live'
   | 'finished'
@@ -49,6 +50,7 @@ export interface MatchResponse {
   result: MatchResult | null
   toss_winner: string | null
   toss_decision: string | null
+  toss_recorded_by: string | null
   is_dual_captain: boolean
   both_teams_ready: boolean
   rules_agreed: boolean
@@ -244,6 +246,16 @@ export async function recordToss(matchId: string, tossWinner: 'A' | 'B', tossDec
     toss_winner: tossWinner,
     toss_decision: tossDecision,
   })
+  return data
+}
+
+export async function approveToss(matchId: string) {
+  const { data } = await apiClient.post(`/matches/${matchId}/toss/approve`)
+  return data
+}
+
+export async function rejectToss(matchId: string) {
+  const { data } = await apiClient.post(`/matches/${matchId}/toss/reject`)
   return data
 }
 

@@ -109,6 +109,11 @@ async def email_login(req: EmailLoginRequest, db: AsyncSession = Depends(get_asy
             detail="Account is deactivated",
         )
 
+    # Clear any previous logout blacklist so the new token works
+    from app.services.redis_service import redis_service
+
+    await redis_service.remove_token_blacklist(user.id)
+
     # Issue JWT tokens
     access_token = create_access_token(data={"sub": user.id})
     refresh_token = create_refresh_token(data={"sub": user.id})
@@ -292,6 +297,11 @@ async def verify_otp(otp_verify: OTPVerify, db: AsyncSession = Depends(get_async
     # Delete OTP session
     db.delete(otp_session)
     await db.commit()
+
+    # Clear any previous logout blacklist so the new token works
+    from app.services.redis_service import redis_service
+
+    await redis_service.remove_token_blacklist(user.id)
 
     # Create JWT tokens
     access_token = create_access_token(data={"sub": user.id})

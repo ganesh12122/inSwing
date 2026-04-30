@@ -937,7 +937,32 @@ async def record_toss(
 
     match.toss_winner = toss_data.toss_winner
     match.toss_decision = toss_data.toss_decision.value
-    match.status = "toss_done"
+    match.toss_recorded_by = current_user.id
+
+    # For dual captain: needs other captain approval
+    if match.is_dual_captain:
+        match.status = "toss_proposed"
+        # Notify other captain
+        other_captain_id = (
+            match.opponent_captain_id
+            if current_user.id == match.host_user_id
+            else match.host_user_id
+        )
+        if other_captain_id:
+            winner_name = (
+                match.team_a_name if toss_data.toss_winner == "A" else match.team_b_name
+            )
+            notification = Notification(
+                user_id=other_captain_id,
+                title="Toss Recorded",
+                message=f"{current_user.full_name} recorded: {winner_name} won toss, elected to {toss_data.toss_decision.value}. Approve or request re-toss.",
+                type="match_update",
+                data={"match_id": match.id},
+                priority="high",
+            )
+            db.add(notification)
+    else:
+        match.status = "toss_done"
 
     await db.commit()
     await db.refresh(match)
@@ -949,6 +974,109 @@ async def record_toss(
         decision=toss_data.toss_decision.value,
     )
 
+    return MatchResponse.from_match(match)
+
+
+@router.post("/{match_id}/toss/approve", response_model=MatchResponse)
+async def approve_toss(
+    match_id: str,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Approve the toss result recorded by the other captain."""
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    if not match.is_captain(current_user.id):
+        raise HTTPException(status_code=403, detail="Only captains can approve toss")
+
+    if match.status != "toss_proposed":
+        raise HTTPException(status_code=400, detail="No toss proposal to approve")
+
+    if match.toss_recorded_by == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You recorded this toss — wait for the other captain to approve",
+        )
+
+    match.status = "toss_done"
+
+    # Notify both captains
+    for captain_id in [match.host_user_id, match.opponent_captain_id]:
+        if captain_id:
+            notification = Notification(
+                user_id=captain_id,
+                title="Toss Approved! ✅",
+                message="Both captains agreed on the toss. Ready to start the match!",
+                type="match_update",
+                data={"match_id": match.id},
+                priority="high",
+            )
+            db.add(notification)
+
+    await db.commit()
+    await db.refresh(match)
+
+    logger.info("Toss approved", match_id=match_id, approved_by=current_user.id)
+    return MatchResponse.from_match(match)
+
+
+@router.post("/{match_id}/toss/reject", response_model=MatchResponse)
+async def reject_toss(
+    match_id: str,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Reject the toss result and request a re-toss."""
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    match = result.scalars().first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    if not match.is_captain(current_user.id):
+        raise HTTPException(status_code=403, detail="Only captains can reject toss")
+
+    if match.status != "toss_proposed":
+        raise HTTPException(status_code=400, detail="No toss proposal to reject")
+
+    if match.toss_recorded_by == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You recorded this toss — wait for the other captain's decision",
+        )
+
+    # Clear toss and go back to rules_approved
+    match.toss_winner = None
+    match.toss_decision = None
+    match.toss_recorded_by = None
+    match.status = "rules_approved"
+
+    # Notify the proposer
+    other_captain_id = match.toss_recorded_by  # already cleared, use the other one
+    proposer_id = (
+        match.host_user_id
+        if current_user.id == match.opponent_captain_id
+        else match.opponent_captain_id
+    )
+    if proposer_id:
+        notification = Notification(
+            user_id=proposer_id,
+            title="Re-Toss Requested",
+            message=f"{current_user.full_name} disagreed with the toss result. Please do a re-toss.",
+            type="match_update",
+            data={"match_id": match.id},
+            priority="high",
+        )
+        db.add(notification)
+
+    await db.commit()
+    await db.refresh(match)
+
+    logger.info(
+        "Toss rejected (re-toss)", match_id=match_id, rejected_by=current_user.id
+    )
     return MatchResponse.from_match(match)
 
 

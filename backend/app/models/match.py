@@ -58,7 +58,8 @@ class Match(Base):
             "dual_captain",
             "friendly",
             "tournament",
-            name="match_type_v2", native_enum=False,
+            name="match_type_v2",
+            native_enum=False,
         ),
         default="quick",
         nullable=False,
@@ -85,12 +86,14 @@ class Match(Base):
             "teams_ready",  # Both captains marked their teams ready
             "rules_proposed",  # One captain proposed rules
             "rules_approved",  # Both captains approved rules
-            "toss_done",  # Toss recorded
+            "toss_proposed",  # Toss recorded, waiting for other captain approval
+            "toss_done",  # Both captains approved toss
             "live",  # Match in progress
             "finished",  # Match completed
             "cancelled",  # Match cancelled
             "declined",  # Invitation declined by opponent
-            name="match_status_v2", native_enum=False,
+            name="match_status_v2",
+            native_enum=False,
         ),
         default="created",
         nullable=False,
@@ -139,8 +142,15 @@ class Match(Base):
     result = Column(JSON, nullable=True)
 
     # === TOSS ===
-    toss_winner = Column(Enum("A", "B", name="toss_winner", native_enum=False), nullable=True)
-    toss_decision = Column(Enum("bat", "bowl", name="toss_decision", native_enum=False), nullable=True)
+    toss_winner = Column(
+        Enum("A", "B", name="toss_winner", native_enum=False), nullable=True
+    )
+    toss_decision = Column(
+        Enum("bat", "bowl", name="toss_decision", native_enum=False), nullable=True
+    )
+    toss_recorded_by = Column(
+        String(36), nullable=True
+    )  # User ID of who recorded the toss
 
     # === TIMESTAMPS ===
     created_at = Column(
@@ -213,6 +223,7 @@ class Match(Base):
             "result": self.result,
             "toss_winner": self.toss_winner,
             "toss_decision": self.toss_decision,
+            "toss_recorded_by": self.toss_recorded_by,
             "created_at": self.created_at.isoformat() if self.created_at else None,  # type: ignore[union-attr]
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,  # type: ignore[union-attr]
             "started_at": self.started_at.isoformat() if self.started_at else None,  # type: ignore[union-attr]

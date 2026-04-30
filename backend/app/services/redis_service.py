@@ -138,6 +138,10 @@ class RedisService:
         val = await self.get(self._blacklist_key(token))
         return val is not None
 
+    async def remove_token_blacklist(self, token: str) -> bool:
+        """Remove a token from the blacklist (e.g. on re-login)."""
+        return await self.delete(self._blacklist_key(token))
+
     # ------------------------------------------------------------------
     # Rate limiting (sliding window counter)
     # ------------------------------------------------------------------

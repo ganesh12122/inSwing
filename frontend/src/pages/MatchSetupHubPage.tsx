@@ -7,6 +7,8 @@ import {
   addPlayer,
   markTeamReady,
   recordToss,
+  approveToss,
+  rejectToss,
   inviteOpponent,
   acceptInvitation,
   proposeRules,
@@ -44,8 +46,8 @@ export function MatchSetupHubPage() {
     if (!match) return 0
     if (match.status === 'created' || match.status === 'invited') return 0
     if (match.status === 'accepted') return 1
-    if (match.status === 'teams_ready' || match.status === 'rules_proposed' || match.status === 'rules_approved') return 2
-    if (match.status === 'toss_done') return 3
+    if (match.status === 'teams_ready' || match.status === 'rules_proposed') return 2
+    if (match.status === 'rules_approved' || match.status === 'toss_proposed' || match.status === 'toss_done') return 3
     return 0
   }
 
@@ -551,7 +553,7 @@ function RulesStep({ matchId, match, error, setError, onDone }: {
 
 function TossStep({ matchId, match, error, setError, onDone, navigate }: {
   matchId: string
-  match: { team_a_name: string; team_b_name: string | null; toss_winner: string | null; toss_decision: string | null; rules: MatchRules }
+  match: { team_a_name: string; team_b_name: string | null; toss_winner: string | null; toss_decision: string | null; toss_recorded_by: string | null; status: string; host_user_id: string; opponent_captain_id: string | null; is_dual_captain: boolean; rules: MatchRules }
   error: string
   setError: (s: string) => void
   onDone: () => void
@@ -560,6 +562,7 @@ function TossStep({ matchId, match, error, setError, onDone, navigate }: {
   const [winner, setWinner] = useState<'A' | 'B'>('A')
   const [decision, setDecision] = useState<'bat' | 'bowl'>('bat')
   const [loading, setLoading] = useState(false)
+  const currentUser = authStore.getUser()
 
   const handleToss = async () => {
     setLoading(true)
@@ -569,6 +572,32 @@ function TossStep({ matchId, match, error, setError, onDone, navigate }: {
       onDone()
     } catch (err) {
       setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Toss failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleApproveToss = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await approveToss(matchId)
+      onDone()
+    } catch (err) {
+      setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Approve failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRejectToss = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await rejectToss(matchId)
+      onDone()
+    } catch (err) {
+      setError((err as AxiosError<{ detail: string }>).response?.data?.detail ?? 'Reject failed')
     } finally {
       setLoading(false)
     }
@@ -590,13 +619,66 @@ function TossStep({ matchId, match, error, setError, onDone, navigate }: {
     }
   }
 
-  // Already tossed
-  if (match.toss_winner) {
+  // Toss proposed — waiting for other captain's approval (dual captain)
+  if (match.status === 'toss_proposed' && match.toss_winner && match.toss_decision) {
+    const isRecorder = currentUser?.id === match.toss_recorded_by
+    const winnerName = match.toss_winner === 'A' ? match.team_a_name : (match.team_b_name ?? 'Team B')
+
+    if (isRecorder) {
+      // The captain who recorded the toss waits
+      return (
+        <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 text-center space-y-4">
+          <Clock size={28} className="mx-auto text-amber-400" />
+          <h3 className="text-base font-bold text-[#dfe4dc]">Toss Recorded — Awaiting Approval</h3>
+          <p className="text-sm text-[#becabc]">
+            <strong className="text-white">{winnerName}</strong> won the toss and elected to <strong className="text-emerald-400">{match.toss_decision}</strong>
+          </p>
+          <p className="text-xs text-[#889488]">Waiting for the other captain to approve or request a re-toss.</p>
+        </div>
+      )
+    }
+
+    // The other captain sees approve/reject UI
+    return (
+      <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 space-y-4">
+        <Coins size={28} className="mx-auto text-amber-400" />
+        <h3 className="text-base font-bold text-[#dfe4dc] text-center">Confirm Toss Result</h3>
+        <div className="rounded-lg border border-[#3e4a3f] bg-[#1b211c] p-4 text-center">
+          <p className="text-sm text-[#becabc]">
+            <strong className="text-white">{winnerName}</strong> won the toss and elected to <strong className="text-emerald-400">{match.toss_decision}</strong>
+          </p>
+        </div>
+        <p className="text-xs text-[#889488] text-center">Does this match the actual toss result?</p>
+
+        {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleRejectToss}
+            disabled={loading}
+            className="flex-1 h-12 rounded-lg border border-red-800 text-red-400 font-bold disabled:opacity-50 transition active:scale-[0.98] hover:bg-red-950/30"
+          >
+            Re-Toss
+          </button>
+          <button
+            onClick={handleApproveToss}
+            disabled={loading}
+            className="flex-1 h-12 rounded-lg bg-[#1B8A4A] font-bold text-white disabled:opacity-50 transition active:scale-[0.98]"
+          >
+            {loading ? 'Approving...' : 'Approve Toss'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Toss done (both approved) — show Start Match
+  if (match.status === 'toss_done' && match.toss_winner) {
     return (
       <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 text-center space-y-4">
         <Coins size={32} className="mx-auto text-emerald-500" />
         <p className="text-sm text-[#becabc]">
-          <strong className="text-[#dfe4dc]">Team {match.toss_winner === 'A' ? match.team_a_name : match.team_b_name}</strong> won the toss and elected to <strong className="text-emerald-400">{match.toss_decision}</strong>
+          <strong className="text-[#dfe4dc]">{match.toss_winner === 'A' ? match.team_a_name : match.team_b_name}</strong> won the toss and elected to <strong className="text-emerald-400">{match.toss_decision}</strong>
         </p>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <button
@@ -610,6 +692,7 @@ function TossStep({ matchId, match, error, setError, onDone, navigate }: {
     )
   }
 
+  // Default: record toss form
   return (
     <div className="rounded-xl border border-[#2a3a4a] bg-[#162029] p-6 space-y-5">
       <h3 className="text-base font-bold text-[#dfe4dc]">Record Toss</h3>

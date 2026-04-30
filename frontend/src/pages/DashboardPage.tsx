@@ -169,6 +169,7 @@ function RecentMatchCard({ match, onClick }: { match: MatchResponse; onClick: ()
     created: 'text-amber-400 bg-amber-500/10 border-amber-500/25',
     accepted: 'text-amber-400 bg-amber-500/10 border-amber-500/25',
     teams_ready: 'text-blue-400 bg-blue-500/10 border-blue-500/25',
+    toss_proposed: 'text-blue-400 bg-blue-500/10 border-blue-500/25',
     toss_done: 'text-blue-400 bg-blue-500/10 border-blue-500/25',
   }
   const cls = statusColors[match.status] ?? statusColors.created
@@ -180,6 +181,7 @@ function RecentMatchCard({ match, onClick }: { match: MatchResponse; onClick: ()
       case 'invited': return 'INVITED'
       case 'accepted': return 'ACCEPTED'
       case 'teams_ready': return 'TEAMS READY'
+      case 'toss_proposed': return 'TOSS'
       case 'toss_done': return 'TOSS DONE'
       default: return 'SETUP'
     }
