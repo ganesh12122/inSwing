@@ -68,4 +68,14 @@ logs/
 
 # ----- Database -----
 *.db
+*.db-shm
+*.db-wal
 *.sqlite3
+
+# ----- Graphify (generated locally; rebuild with `graphify . --code-only`) -----
+graphify-out/
+
+# ----- Cursor (commit shared rules only) -----
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
